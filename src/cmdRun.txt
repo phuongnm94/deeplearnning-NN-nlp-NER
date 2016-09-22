@@ -1,0 +1,1 @@
+taskset -c 2-3 th main.lua --iDataset 5 --nameLog brnnLstm-features-newsgd-5-5.log --nameNet brnnLstm-features --lr 0.1 --isTrainBatchSentenceSameSize --countLoopAllData 200 --isUseOptimizeGradient --isSaveLog --isUseFeatureWord --batchSentenceSize 5
