@@ -20,9 +20,6 @@ inputs, targets = {}, {}
 -- pairNERIds
 gNERIds = {}
 
--- define number word id
-bUseWordIdPaddingForNumber = false
-nWordIdPaddingForNumber = nil
 
 function main()
 
@@ -42,7 +39,7 @@ function main()
 
         rho = 512                       -- so tu trong 1 cau ~ co the thay doi theo cau
         hiddenSize = 200                -- so chieu vector sinh boi word to vec
-        nIndex = 9                      -- so nhan tu loai ~ O, B-ORG, B-PER, v...v....
+        g_nCountLabel = 9               -- so nhan tu loai ~ O, B-ORG, B-PER, v...v....
         lr = opt.lr
 
         g_countLoopForOneBatch = opt.countLoopOneBatchSize
@@ -51,75 +48,117 @@ function main()
         g_iDataset = opt.iDataset
         g_isUseFeatureWord = opt.isUseFeatureWord
         g_trainRate = opt.trainRate
+        g_nCountLabel = g_nCountLabel
+        g_isUseMaskZeroPadding = opt.isUseMaskZeroPadding
         
         print (opt)
 
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         -- INIT DATA SET AND DICTIONARY
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         if(g_isUseFeatureWord) then
                 InitData('SubDict_vc.txt','features.txt')
         else
                 InitData('SubDict_vc.txt','NonTag4type.tag')
         end
-        print(#inputs)
         
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        
+        
+        
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         -- SETUP NERON NET
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
-        netNN = InitModelNN(sNameNet,rawDataInputSize,hiddenSize,nIndex,mtWeightInit, rawFeatureInputSize)
-
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        netNN = InitModelNN(sNameNet,rawDataInputSize,hiddenSize,g_nCountLabel,
+                mtWeightInit, rawFeatureInputSize)
+        
         -- cai dat ham toi uu hoa gradient
         if(bIsUseOptimize) then 
                 InitOptimizeConfig(netNN, opt)
         end
 
 
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         -- SETUP LOSS FUNCTION -  ClassNLLCriterion
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
-        criterion = nn.SequencerCriterion(nn.ClassNLLCriterion())
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- Tinh ma tran trong so khi tap hoc thay doi
+        local mtRateClassTraining = GetRateTrainingEachClass(
+                        DataSetGroup["targetsTrain"],   -- dataset 
+                        1,                              -- index start                                      
+                        #DataSetGroup["targetsTrain"]   -- size
+                )
+        criterion = nn.ClassNLLCriterion(mtRateClassTraining)
+        if g_isUseMaskZeroPadding then 
+                criterion = nn.SequencerCriterion(nn.MaskZeroCriterion(criterion, 1))
+        else
+                criterion = nn.SequencerCriterion(criterion)
+        end
 
 
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         -- TRAINING
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         local nIndexStart, nIndexEnd  = 1,200
---        goto _BEGIN_TEST
+
         if bIsRunInParalell == false then
-                nIndexStart, nIndexEnd = TrainningUseCrossvalidation(netNN,criterion,inputs,targets,nRateTrainningSet)
+                nIndexStart, nIndexEnd = TrainningUseCrossvalidation(
+                        netNN,criterion,inputs,targets,nRateTrainningSet)
         else
                 if(bIsUseOptimize) then
                         if(g_isUseFeatureWord == false) then
-                                nIndexStart, nIndexEnd = TrainningUseOptimBatchCrossvalidation(netNN,criterion,inputsParallel,targetsParalel,nRateTrainningSet)
+                                --nIndexStart, nIndexEnd = TrainningUseOptimBatchCrossvalidation(netNN,criterion,inputsParallel,targetsParalel,nRateTrainningSet)
+                                nIndexStart, nIndexEnd = TrainningUseOptimBatchCrossvalidation(
+                                        netNN,
+                                        criterion,
+                                        DataSetGroup["inputsTrain"],
+                                        DataSetGroup["targetsTrain"],
+                                        nRateTrainningSet)
                         else
-                                nIndexStart, nIndexEnd = TrainningUseOptimBatchFeaturesCrossvalidation(netNN,criterion,inputsParallel,targetsParalel,featuresParallel, nRateTrainningSet)
+                                nIndexStart, nIndexEnd = TrainningUseOptimBatchFeaturesCrossvalidation(
+                                        netNN,
+                                        criterion,
+                                        inputsParallel,
+                                        targetsParalel,
+                                        featuresParallel,
+                                        nRateTrainningSet)
+                                
                         end
                 else
-                        nIndexStart, nIndexEnd = TrainningUseCrossvalidationParallel(netNN,criterion,inputsParallel,targetsParalel,nRateTrainningSet)
+                        nIndexStart, nIndexEnd = TrainningUseCrossvalidationParallel(
+                                netNN,
+                                criterion,
+                                DataSetGroup["inputsTrain"],
+                                DataSetGroup["targetsTrain"],
+                                nRateTrainningSet)
                 end
         end
 
 
 
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         -- TESTING
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
+        -- ---------------------------------------------------------------------
         ::_BEGIN_TEST::
         if bIsRunInParalell == false then
-                TestUseCrossvalidation(netNN,inputs,targets,nIndex,nIndexStart,nIndexEnd)
+                TestUseCrossvalidation(netNN,inputs,targets,g_nCountLabel,
+                        nIndexStart,nIndexEnd)
         else
-                TestUseCrossvalidationParallel(netNN,inputsParallel,targetsParalel,nIndex,nIndexStart,nIndexEnd, featuresParallel)
+                TestUseCrossvalidationParallel(
+                        netNN,
+                        DataSetGroup["inputsTest"],
+                        DataSetGroup["targetsTest"],
+                        g_nCountLabel,
+                        nIndexStart,nIndexEnd, 
+                        featuresParallel)
             
         end
 

@@ -1,3 +1,4 @@
+require 'nn'
 
 ---
 -- string:plit(step) - chia xau string thanh mang phan cach boi cac ki tu 'step'
@@ -7,6 +8,21 @@ function string:split(sep)
         local pattern = string.format("([^%s]+)", sep)
         self:gsub(pattern, function(c) fields[#fields+1] = c end)
         return fields
+end
+
+--
+-- table:append(new table) mo rong bang tu 1 bang moi
+--
+function table:append(appendTable)      
+
+        for _, v in pairs(appendTable) do 
+                table.insert(self, v)
+        end
+        return self
+end
+
+function tableEx(tableOld)
+    return setmetatable(tableOld, {__index = table})
 end
 
 
@@ -109,6 +125,7 @@ function matrixExtractFrom(sPathFile)
         local elements
         local elementsDouble={}
         local WordIdRet = {}
+        local IdWordRet = {}
         local sizeWordIds = 0
 
         if not isFileExists(sPathFile) then
@@ -125,6 +142,7 @@ function matrixExtractFrom(sPathFile)
 
                 sizeWordIds = sizeWordIds + 1
                 WordIdRet[elements[1]:lower()] = sizeWordIds
+                IdWordRet[sizeWordIds] = elements[1]:lower() 
 
                 elements[1] = "0.0";
                 elementsDouble = torch.DoubleStorage(elements)
@@ -136,7 +154,7 @@ function matrixExtractFrom(sPathFile)
         end
 
         ::_EXIT_FUNCTION::
-        return WordIdRet, torch.Tensor(MatrixWordVectorRet)
+        return WordIdRet, torch.Tensor(MatrixWordVectorRet), IdWordRet
 
 end
 
@@ -208,18 +226,9 @@ function getDataSentenceFrom(sPathFileDataSet, pairWordIds, NERIds, nLastIdxWord
                         goto CONTINUE
                 end
 
-                -- neu tu co chua ki tu so => gan nhan id = nWordIdPaddingForNumber
-                if(
-                        bUseWordIdPaddingForNumber ~= nil
-                        and bUseWordIdPaddingForNumber == true
-                        and IsWordHasNumCharacter(elements[1])== true
-                        )
-                then
-                        idtmpWord = nWordIdPaddingForNumber
-                else
-                        idtmpWord = pairWordIds[elements[1]:lower()]
-                end
-
+                -- lay id cua tu trong tu dien
+                idtmpWord = pairWordIds[elements[1]:lower()]
+               
                 if(idtmpWord ~= nil)then
                         -- lay tung gia tri id word
                         tmpSentence[idxWord] = idtmpWord
@@ -501,12 +510,39 @@ function tableUnpackExtend(tblSrc, posStart, posEnd)
         
         local posCurrent  = posStart
         local size = 6000
-        local tblRet = {}
+        --local tblRet = {}
+        local tblRet = tableEx({})
         
         for posCurrent= posStart, posEnd, size do 
-                tblRet[#tblRet + 1] = {table.unpack(tblSrc,posCurrent,math.min(posCurrent + size -1, posEnd))}
+                tblRet:append({table.unpack(tblSrc,posCurrent,math.min(posCurrent + size -1, posEnd))})
         end
         
-        tblRet = nn.FlattenTable():forward(tblRet)
+        --tblRet = nn.FlattenTable():forward(tblRet)
         return tblRet
 end
+
+
+--- ----------------------------------------------------------------------------
+-- Buid table - {sizeSentence : {list Id sentence} } -
+-- Xay dung cay chi muc nguoc kich thuoc => { idSentences }
+--  
+-- @function [parent=#global] groupSentenceSameSize(listSentence)
+-- 
+-- @param listSentence list sentence - ds cac cau
+-- @return table indicates size to Id sentence
+function groupSentenceSameSize(listSentence)
+
+        local tblSizeToIdRet = {}
+--        print (listSentence)
+        for id, sentence in pairs(listSentence) do 
+                if(tblSizeToIdRet[#sentence] == nil) then
+                        tblSizeToIdRet[#sentence] = {}
+                end 
+                
+                table.insert(tblSizeToIdRet[#sentence], id) 
+        end
+        
+        return tblSizeToIdRet
+end
+
+

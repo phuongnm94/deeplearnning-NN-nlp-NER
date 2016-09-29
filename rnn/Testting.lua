@@ -44,7 +44,7 @@ function TestUseCrossvalidation(rnn, inputs, targets, nCountTopic, nIndexStart, 
 
                         idNERDist = sentenceNERDist[1][i]
                         idNEROut  = lstIdNEROut[1][i][1]
-
+                        
 
                         if idNEROut == idNERDist then
                                 tblResultTrue [idNERDist] = tblResultTrue[idNERDist]+1
@@ -191,7 +191,7 @@ function TestUseCrossvalidation(rnn, inputs, targets, nCountTopic, nIndexStart, 
         return {{sumData, sumData2}, {sumOut,sumOut2}, {sumTrue, sumTrue2}}
 end
 
-function TestUseCrossvalidationParallel(rnn, inputs, targets, nCountTopic, nIndexStart, nIndexEnd, features)
+function TestUseCrossvalidationParallel2(rnn, inputs, targets, nCountTopic, nIndexStart, nIndexEnd, features)
 
         --        local iteration = 10745
         local tblResultTrue = torch.LongTensor(nCountTopic):fill(0)
@@ -365,6 +365,204 @@ function TestUseCrossvalidationParallel(rnn, inputs, targets, nCountTopic, nInde
                         tblResultTrue2[i], tblResultOut2[i], tblNERDataset2[i],
                         tblResultTrue2[i]*100.00/tblResultOut2[i], 
                         tblResultTrue2[i]*100.00/tblNERDataset2[i]
+                        ))
+        end
+
+        print '................................................................'
+        
+        ::_EXIT_FUNCTION_::
+
+
+        return {{sumData, sumData2}, {sumOut,sumOut2}, {sumTrue, sumTrue2}}
+end
+
+function TestUseCrossvalidationParallel(rnn, inputs, targets, nCountTopic, nIndexStart, nIndexEnd, features)
+
+        --        local iteration = 10745
+        local tblResultTrue = torch.LongTensor(nCountTopic):fill(0)
+        local tblResultOut = torch.LongTensor(nCountTopic):fill(0)
+        local tblNERDataset = torch.LongTensor(nCountTopic):fill(0)
+        local sumTrue, sumOut, sumData = 0,0,0
+
+
+        local tblResultTrue2 = torch.LongTensor(nCountTopic):fill(0)
+        local tblResultOut2 = torch.LongTensor(nCountTopic):fill(0)
+        local tblNERDataset2 = torch.LongTensor(nCountTopic):fill(0)
+        local sumTrue2, sumOut2, sumData2 = 0,0,0
+
+        local nSizeInputs = #inputs
+        local iteration -- = nIndexEnd
+
+        for iteration =1, nSizeInputs do --while iteration ~= nIndexStart do
+
+                -- ----------------------------------------------------------------
+                -- Khoi tao du lieu input cho 1 cau
+                -- ----------------------------------------------------------------
+                local sentence, sentenceFeatures = {}, {}
+                local sentenceNERDist = {}
+                local sentenceOut = nil
+
+                local outputs, err
+                local gradOutputs, gradInputs
+                local idNEROut, idNERDist, _                      -- ket qua gan nhan cho tu
+                local nCountSentence = 1
+                local nCountWordInSentence
+
+
+                sentence = torch.Tensor(inputs[iteration])--:t()
+                
+                -- tong hop ket qua tung cau vao tap ket qua
+                nCountSentence = sentence:size()[1]
+                nCountWordInSentence = sentence[1]:size()[1]
+                
+                if(g_isUseFeatureWord ~= nil and g_isUseFeatureWord == true) then
+                        sentenceFeatures = torch.Tensor(features[iteration])
+                        sentence = {sentence, sentenceFeatures}
+                end
+                
+                sentenceNERDist = torch.Tensor(targets[iteration])--:t()
+                
+
+                outputs = rnn:forward(sentence)
+                _, sentenceOut = outputs:topk(1, true)
+                
+
+                for idxSentence =1 , nCountSentence do
+                        for i = 1, nCountWordInSentence do
+
+                                idNERDist = sentenceNERDist[idxSentence][i]
+                                idNEROut  = sentenceOut[idxSentence][i][1]
+                                
+                                -- bo qua neu la padding word 
+                                if idNERDist == 0 then break end 
+                                
+
+                                if idNEROut == idNERDist then
+                                        tblResultTrue [idNERDist] = tblResultTrue[idNERDist]+1
+                                end
+                                tblResultOut[idNEROut] =  tblResultOut[idNEROut] + 1
+                                tblNERDataset[idNERDist] = tblNERDataset[idNERDist] + 1
+                        end
+
+                end
+
+
+                -- tong hop ket qua Theo nhan ngu nghia tung cau vao tap ket qua 2
+                for idxSentence = 1, nCountSentence do
+
+                        for i = 1, nCountWordInSentence do
+
+                                idNERDist = sentenceNERDist[idxSentence][i]
+                                idNEROut  = sentenceOut[idxSentence][i][1]
+                                
+                                -- bo qua neu la padding word 
+                                if idNERDist == 0 then break end 
+
+                                if(idNEROut == 1 or idNEROut % 2 == 0) then
+                                        tblResultOut2[idNEROut] =  tblResultOut2[idNEROut] + 1
+
+                                end
+
+                                if(idNERDist == 1 or idNERDist % 2 == 0) then
+                                        tblNERDataset2[idNERDist] = tblNERDataset2[idNERDist] + 1
+
+                                end
+
+                                if(idNERDist == idNEROut) then
+                                        if(idNEROut == 1) then
+                                                tblResultTrue2[idNEROut] =  tblResultTrue2[idNEROut] + 1
+                                        else
+                                                -- Neu la nhan I-
+                                                if(idNEROut % 2 == 1) then goto _CONTINUE_NEXT_WORD_ end
+
+                                                -- Neu nhan B- la word cuoi cung trong cau
+                                                if(i == nCountWordInSentence) then
+                                                        tblResultTrue2[idNEROut] =  tblResultTrue2[idNEROut] + 1
+                                                        goto _CONTINUE_NEXT_WORD_
+                                                end
+
+                                                -- Kiem tra cac nhan I- phia sau
+                                                local j = 0
+                                                for j = i+1, nCountWordInSentence do
+
+                                                        local idNEROutNext  = sentenceOut[idxSentence][j][1]
+                                                        local idNERDistNext = sentenceNERDist[idxSentence][j]
+
+                                                        -- Neu cac tu phia sau trong Out va Dist deu khong phai la I- => +1
+                                                        if(idNERDistNext ~= (idNEROut+1) and idNEROutNext ~= (idNEROut+1)) then
+                                                                tblResultTrue2[idNEROut] =  tblResultTrue2[idNEROut] + 1
+                                                                break
+                                                        end
+
+                                                        -- neu 1 trong 2 tu phia sau == IdNEROut + 1 nhung khac nhau => +0
+                                                        if(idNERDistNext ~= idNEROutNext) then
+                                                                break
+                                                        end
+
+                                                        -- Neu 2 tu (Out va Dist) = nhau va = idNEROut + 1 va la word cuoi cung
+                                                        -- trong cau => +1
+                                                        if(j == nCountWordInSentence) then
+                                                                tblResultTrue2[idNEROut] =  tblResultTrue2[idNEROut] + 1
+                                                        end
+
+                                                end
+
+                                        end
+                                end
+                                ::_CONTINUE_NEXT_WORD_::
+                        end
+                end
+
+                ::CONTINUE::
+                iteration = iteration%nSizeInputs + 1
+        end
+
+        -- Ket qua tong hop chung tat ca cac nhan ngoai tru nhan O
+        for i = 2, nCountTopic do
+                sumData = sumData + tblNERDataset[i]
+                sumData2 = sumData2+tblNERDataset2[i]
+
+                sumOut = sumOut + tblResultOut[i]
+                sumOut2 = sumOut2 + tblResultOut2[i]
+
+                sumTrue = sumTrue + tblResultTrue[i]
+                sumTrue2 = sumTrue2 + tblResultTrue2[i]
+        end
+
+        print '................................................................'
+        print 'Khong ghep cap B- I- : '
+        print 'So tu gan nhan dung / So tu duoc gan nhan / So tu trong dataset '
+        local P, R = sumTrue*100.0/sumOut, sumTrue*100.0/sumData
+        print (string.format('Precission = %6.2f, Recall = %6.2f, F1 = %6.2f',
+                        P, R, 2*P*R*1.00/(P+R)))
+        print '................................................................'
+        for i=1, nCountTopic do
+                local Pi = tblResultTrue[i]*100.00/tblResultOut[i]
+                local Ri = tblResultTrue[i]*100.00/tblNERDataset[i]
+                print(string.format('%6d, %6d, %6d,  P = %6.2f, R = %6.2f, F1 = %6.2f',
+                        tblResultTrue[i], tblResultOut[i], tblNERDataset[i],
+                        Pi, 
+                        Ri,
+                        2*Pi*Ri*1.00/(Pi+Ri)
+                        ))
+        end
+
+
+        print '................................................................'
+        print 'Ghep cap BI- : '
+        print 'So tu gan nhan dung / So tu duoc gan nhan / So tu trong dataset '
+        local P2, R2 = sumTrue2*100.0/sumOut2, sumTrue2*100.0/sumData2
+        print (string.format('Precission = %6.2f, Recall = %6.2f, F1 = %6.2f',
+                        P2, R2, 2*P2*R2*1.00/(P2+R2)))
+        print '................................................................'
+        for i=1, nCountTopic do
+                local Pi = tblResultTrue2[i]*100.00/tblResultOut2[i]
+                local Ri = tblResultTrue2[i]*100.00/tblNERDataset2[i]
+                print(string.format("%6d, %6d, %6d,  P = %6.2f, R = %6.2f, F1 = %6.2f",
+                        tblResultTrue2[i], tblResultOut2[i], tblNERDataset2[i],
+                        Pi,
+                        Ri,        
+                        2*Pi*Ri*1.00/(Pi+Ri)
                         ))
         end
 
