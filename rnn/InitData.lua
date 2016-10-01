@@ -119,16 +119,16 @@ end
 --
 -- @function [parent=#global] initRandomDataWeightMatrix(x, y)
 --
--- @param x chieu 1 - dims 1 
+-- @param x chieu 1 - dims 1
 -- @param y chieu 2 - dims 2
 --
 -- @return matrix sau khi duoc them 'dim[x, y]' ngau nhien theo phan phoi Grotot
---         matrix weight[x, y] by Grotot distribute     
+--         matrix weight[x, y] by Grotot distribute
 function initRandomDataWeightMatrix(x, y)
 
         local tmpNetLinear = nn.Linear(y, x)
         tmpNetLinear:init('weight', nninit.xavier)
-        
+
         return tmpNetLinear.weight
 end
 
@@ -313,7 +313,7 @@ function splitDataSet(inputs, targets,features, sizeSentencesInfo, sizeSplit)
                 mtFeaturesSplit[idxMtInputsSplit] = {}
 
                 for j=1, nSizeLstIdSentence do
-                
+
                         mtInputsSplit[idxMtInputsSplit][j] = inputs[lstIdSentence[j]]
                         mtTargetsSplit[idxMtInputsSplit][j] = targets[lstIdSentence[j]]
                 end
@@ -352,48 +352,170 @@ function splitDataSetUseMaskZeroPadding(inputs, targets,features, sizeSplit)
         local mtInputsSplit, mtTargetsSplit, mtFeaturesSplit = {}, {}, {}
         local tmpBatchSentence, tmpBatchSentenceDest, tmpBatchSentenceFeature = {},{}, {}
         local maxWordInSentence = 0
-        
+
         for idxSentence, sentence in pairs(inputs) do
-                
-                -- them tung cau vao current batch 
+
+                -- them tung cau vao current batch
                 tmpBatchSentence[#tmpBatchSentence+1] = sentence
                 tmpBatchSentenceDest[#tmpBatchSentenceDest+1] = targets[idxSentence]
-                if(features ~= nil) then  
+                if(features ~= nil) then
                         tmpBatchSentenceFeature[#tmpBatchSentenceFeature+1] = features[idxSentence]
                 end
-                
+
                 maxWordInSentence = math.max(maxWordInSentence, #sentence)
-                
+
                 -- them 1 batch sentence vao table tra ve
                 if (#tmpBatchSentence == sizeSplit or idxSentence == #inputs) then
-                        
-                        -- add padding cho tung cau 
-                        for idx, sentence in pairs(tmpBatchSentence) do 
+
+                        -- add padding cho tung cau
+                        for idx, sentence in pairs(tmpBatchSentence) do
                                 local nCountPaddingAdd = maxWordInSentence - #sentence
                                 if nCountPaddingAdd == 0 then goto CONTINUE end
-                                
+
                                 local tblPadding =  torch.totable(torch.zeros(nCountPaddingAdd))
                                 tmpBatchSentence[idx] = tableEx(sentence):append(tblPadding)
                                 tmpBatchSentenceDest[idx] = tableEx(tmpBatchSentenceDest[idx]):append(tblPadding)
-                                
+
                                 ::CONTINUE::
                         end
-                        
+
                         -- them batch sentence vao table
                         mtInputsSplit[#mtInputsSplit+1] = tmpBatchSentence
                         mtTargetsSplit[#mtTargetsSplit+1] = tmpBatchSentenceDest
-                        if(features ~= nil) then  
+                        if(features ~= nil) then
                                 mtFeaturesSplit[#mtFeaturesSplit+1] = tmpBatchSentenceFeature
                         end
-                        
+
                         tmpBatchSentence, tmpBatchSentenceDest, tmpBatchSentenceFeature = {},{}, {}
-                        maxWordInSentence = 0 
+                        maxWordInSentence = 0
                 end
-                
+
         end
 
         ::_EXIT_FUNCTION::
         return  mtInputsSplit, mtTargetsSplit, mtFeaturesSplit
+end
+
+---
+-- Thong ke lai ti le trainTest tung tap dataset cho tung chu de
+--
+-- @function [parent=#global] showRateDatasetTrainTest(datasetNew)
+-- @param  datasetNew tap du lieu da duoc chia lam 10 phan
+function showRateDatasetTrainTest (datasetNew)
+
+        local iDatasetTest = 1
+
+        for iDatasetTest =1, 10 do
+                print(string.format("Dataset %d", iDatasetTest))
+
+                local test  = {}
+                local train = tableEx({})
+
+                local countTest  = torch.Tensor(g_nCountLabel):fill(0)
+                local countTrain  = torch.Tensor(g_nCountLabel):fill(0)
+
+                for idxDataset, subDataset in pairs(datasetNew) do
+                        if idxDataset == iDatasetTest then
+                                test = subDataset
+                        else
+                                train = train:append(subDataset)
+                        end
+                end
+
+                for i, sentence in pairs(test) do
+                        for iWord , idLabel in pairs (sentence) do
+                                countTest[idLabel] =  countTest[idLabel] +1
+                        end
+                end
+
+                for i, sentence in pairs(train) do
+                        for iWord , idLabel in pairs (sentence) do
+                                countTrain[idLabel] =  countTrain[idLabel] +1
+                        end
+                end
+
+                for i=1, g_nCountLabel do
+                        print (string.format("test = %d, train = %d, rate = %6.2f ",
+                                countTest[i],
+                                countTrain[i],
+                                countTest[i]*100.0/(countTrain[i]+countTest[i])
+                        ))
+                end
+        end
+end
+
+---
+-- Danh lai chi so cac cau sao cho moi tap du lieu (10 sub dataset) chua so
+-- luong cac tu thuoc cac nhan deu nhau / ReIndex sentence to balance label's
+-- countWord each sub dataset
+--
+-- @function [parent=#global] reIndexDataset(dataset)
+-- @param  dataset tap du lieu targets input / targetsInput set
+function reIndexDataset(inputs, targets, features)
+
+        local inputsNew, targetsNew, featuresNew = {}, {}, {}
+        local infoLabelToSentence = {}
+        local infoSizeLabelSubDataset = torch.Tensor(g_nCountLabel):fill(0)
+        local mtDatasetIsUsed = torch.Tensor(#targets):fill(0)
+
+        -- khoi tao tap thong tin cho tung nhan
+        for i =1, g_nCountLabel do infoLabelToSentence [i] = {} end
+
+        -- Khoi tao bo chua du lieu sub dataset
+        for i =1, 10 do 
+               inputsNew[i], targetsNew[i], featuresNew[i] = {}, {}, {} 
+        end
+
+        -- Thong ke lai { idLabel -> {idSentence,.}, idLabel -> {idSentence,..} }
+        for idxSentence, sentence in pairs(targets) do
+                local tmpSentenceWordId = {}
+
+                -- tim kiem tap nhan trong cau
+                for _, wordLabelId in pairs(sentence) do
+                        if (wordLabelId > 0) then
+                                tmpSentenceWordId[wordLabelId] = true
+                        end
+                end
+
+                -- dua tung cau vao tap nhan -> {idSentence} tuong ung
+                for wordLabelId, _ in pairs(tmpSentenceWordId) do
+                        if (wordLabelId > 0) then
+                                table.insert(infoLabelToSentence[wordLabelId], idxSentence)
+                        end
+                end
+        end
+
+        -- Tinh lai so phan tu cua tung tap nhan
+        for idLabel, dataset in pairs(infoLabelToSentence) do
+                infoSizeLabelSubDataset[idLabel] = math.ceil(#dataset / 10)
+        end
+
+        -- gan lai chi so vao tap du lieu moi
+        for idLabel = g_nCountLabel, 1, -1 do
+
+                local setIdSentence = infoLabelToSentence[idLabel]
+
+                for idx, idSentence in pairs(setIdSentence) do
+
+                        -- Kiem tra xem cau nay da duoc dung hay chua
+                        if(mtDatasetIsUsed[idSentence] == 1) then goto CONTINUE end
+
+                        -- Ghi lai cau vao vi tri sub dataset moi
+                        local idxSubDataset = math.ceil(idx/infoSizeLabelSubDataset[idLabel])
+                        table.insert(targetsNew[idxSubDataset], targets[idSentence])
+                        table.insert(inputsNew[idxSubDataset], inputs[idSentence])
+                        if(features~= nil) then 
+                                table.insert(featuresNew[idxSubDataset], features[idSentence])
+                        end
+                        mtDatasetIsUsed[idSentence] = 1
+
+                        ::CONTINUE::
+                end
+        end
+        
+        --showRateDatasetTrainTest(targetsNew)
+        return inputsNew, targetsNew, featuresNew
+
 end
 
 ---
@@ -411,68 +533,81 @@ end
 function loadDataSet(sPathFileDataSet, pairWordIds, NERIds,nLastIdxMtWordVector, sizeAppendDict)
 
         -- load data file
-        local inputs, targets, features
+        local inputs, targets, features, inputsNew, targetsNew, featuresNew
         DataSet, DataSizeInfo, DataSetGroup = {}, {}, {}
 
         inputs, targets, g_sizeSentencesInfo, features=
                 getDataSentenceFrom2(sPathFileDataSet,pairWordIds,NERIds,nLastIdxMtWordVector, sizeAppendDict)
         assert(#inputs == #targets, 'Input vs Target is not same size')
 
-        local nCountInputs = #inputs
-        local nCountTestSet = math.max(1,math.ceil((1 - g_trainRate) * nCountInputs));
-        local nIndexTestStart = math.min(
-                                        math.max(1, math.ceil((g_iDataset-1)*(1-g_trainRate)*nCountInputs))
-                                        ,nCountInputs
-                                        )
-        local nIndexTestEnd = math.min(nCountInputs, nCountTestSet + nIndexTestStart )
-
-        print(string.format('Dataset test [%d/%d] : Cau %d - Cau %d', g_iDataset, 10, nIndexTestStart, nIndexTestEnd))
-
-        if(_VERSION == "Lua 5.2") then 
-                DataSet["inputsTest"] = {table.unpack(inputs,nIndexTestStart,nIndexTestEnd)}
-                DataSet["inputsTrain"] = (tableEx({table.unpack(inputs,1,nIndexTestStart-1)}))
-                        :append({table.unpack(inputs,nIndexTestEnd+1,nCountInputs)})
-        
-                DataSet["targetsTest"] = {table.unpack(targets,nIndexTestStart,nIndexTestEnd)}
-                DataSet["targetsTrain"] =  (tableEx({table.unpack(targets,1,nIndexTestStart-1)}))
-                        :append({table.unpack(targets,nIndexTestEnd+1,nCountInputs)})
-        
-                DataSizeInfo["inputsTest"] = groupSentenceSameSize(DataSet["inputsTest"])
-                DataSizeInfo["inputsTrain"] = groupSentenceSameSize(DataSet["inputsTrain"])
+        if(g_isReparseBalanceData == true) then 
+                DataSet["inputsTrain"] = tableEx({})
+                DataSet["targetsTrain"] = tableEx({})
+                inputsNew, targetsNew, featuresNew = reIndexDataset(inputs, targets, features)
+                for idxDataset=1, 10 do
+                        if idxDataset == g_iDataset then
+                                DataSet["inputsTest"] = inputsNew[idxDataset]
+                                DataSet["targetsTest"] = targetsNew[idxDataset]
+                        else
+                                DataSet["inputsTrain"] = DataSet["inputsTrain"]:append(inputsNew[idxDataset])
+                                DataSet["targetsTrain"] = DataSet["targetsTrain"]:append(targetsNew[idxDataset])
+                        end
+                end
         else 
-                DataSet["inputsTest"] = tableUnpackExtend(inputs,nIndexTestStart,nIndexTestEnd)
-                DataSet["inputsTrain"] = (tableEx(tableUnpackExtend(inputs,1,nIndexTestStart-1)))
-                        :append(tableUnpackExtend(inputs,nIndexTestEnd+1,nCountInputs))
+                local nCountInputs = #inputs
+                local nCountTestSet = math.max(1,math.ceil((1 - g_trainRate) * nCountInputs));
+                local nIndexTestStart = math.min(
+                        math.max(1, math.ceil((g_iDataset-1)*(1-g_trainRate)*nCountInputs)),
+                        nCountInputs
+                )
+                local nIndexTestEnd = math.min(nCountInputs, nCountTestSet + nIndexTestStart )
+                
+                print(string.format('Dataset test [%d/%d] : Cau %d - Cau %d', g_iDataset, 10, nIndexTestStart, nIndexTestEnd))
         
-                DataSet["targetsTest"] = tableUnpackExtend(targets,nIndexTestStart,nIndexTestEnd)
-                DataSet["targetsTrain"] =  (tableEx(tableUnpackExtend(targets,1,nIndexTestStart-1)))
-                        :append(tableUnpackExtend(targets,nIndexTestEnd+1,nCountInputs))
+                if(_VERSION == "Lua 5.2") then
+                        DataSet["inputsTest"] = {table.unpack(inputs,nIndexTestStart,nIndexTestEnd)}
+                        DataSet["inputsTrain"] = (tableEx({table.unpack(inputs,1,nIndexTestStart-1)}))
+                                :append({table.unpack(inputs,nIndexTestEnd+1,nCountInputs)})
         
-                DataSizeInfo["inputsTest"] =chien groupSentenceSameSize(DataSet["inputsTest"])
-                DataSizeInfo["inputsTrain"] = groupSentenceSameSize(DataSet["inputsTrain"])
+                        DataSet["targetsTest"] = {table.unpack(targets,nIndexTestStart,nIndexTestEnd)}
+                        DataSet["targetsTrain"] =  (tableEx({table.unpack(targets,1,nIndexTestStart-1)}))
+                                :append({table.unpack(targets,nIndexTestEnd+1,nCountInputs)})
+                else
+                        DataSet["inputsTest"] = tableUnpackExtend(inputs,nIndexTestStart,nIndexTestEnd)
+                        DataSet["inputsTrain"] = (tableEx(tableUnpackExtend(inputs,1,nIndexTestStart-1)))
+                                :append(tableUnpackExtend(inputs,nIndexTestEnd+1,nCountInputs))
+        
+                        DataSet["targetsTest"] = tableUnpackExtend(targets,nIndexTestStart,nIndexTestEnd)
+                        DataSet["targetsTrain"] = (tableEx(tableUnpackExtend(targets,1,nIndexTestStart-1)))
+                                :append(tableUnpackExtend(targets,nIndexTestEnd+1,nCountInputs))
+                end
         end
-        
+
+        DataSizeInfo["inputsTest"] = groupSentenceSameSize(DataSet["inputsTest"])
+        DataSizeInfo["inputsTrain"] = groupSentenceSameSize(DataSet["inputsTrain"])
+
+
         -- Chia bo du lieu input[i] = matrix[batchSize x countSentence x countWord]
         -- split data to input[i] = matrix[batchSize x countSentence x countWord]
         if (bIsRunInParalell == true) then
-                
+
                 --inputsParallel,targetsParalel, featuresParallel =
                 --        splitDataSet(inputs,targets, features, g_sizeSentencesInfo, g_batchSentenceSize)
 
-                if g_isUseMaskZeroPadding == true then 
-                        
+                if g_isUseMaskZeroPadding == true then
+
                         DataSetGroup["inputsTrain"], DataSetGroup["targetsTrain"], DataSetGroup["featuresTrain"]
-                                =  splitDataSetUseMaskZeroPadding(
-                                        DataSet["inputsTrain"] ,DataSet["targetsTrain"] ,
-                                        DataSet["featuresTrain"], g_batchSentenceSize)
-        
+                        =  splitDataSetUseMaskZeroPadding(
+                                DataSet["inputsTrain"] ,DataSet["targetsTrain"] ,
+                                DataSet["featuresTrain"], g_batchSentenceSize)
+
                         DataSetGroup["inputsTest"], DataSetGroup["targetsTest"], DataSetGroup["featuresTest"]
-                                =  splitDataSetUseMaskZeroPadding(
-                                        DataSet["inputsTest"] ,DataSet["targetsTest"] ,
-                                        DataSet["featuresTest"], g_batchSentenceSize)
-                        
+                        =  splitDataSetUseMaskZeroPadding(
+                                DataSet["inputsTest"] ,DataSet["targetsTest"] ,
+                                DataSet["featuresTest"], g_batchSentenceSize)
+
                         goto _END_SPLIT_DATA
-                end 
+                end
 
                 DataSetGroup["inputsTrain"], DataSetGroup["targetsTrain"], DataSetGroup["featuresTrain"]
                 =  splitDataSet(DataSet["inputsTrain"] ,DataSet["targetsTrain"] ,
@@ -529,7 +664,7 @@ function GetRateTrainingEachClass(dataset, nIndexStart, nCountElement)
 
                 nIndexStart = 1
         end
-        
+
         for i = 1, g_nCountLabel do
                 rateClassRet[i] = 0
         end
@@ -590,22 +725,22 @@ function GetRateTrainingEachClass(dataset, nIndexStart, nCountElement)
                 end
 
         end
-        
+
         -- skip padding value: key = 0
         rateClassRet[0] = nil
 
         for k, v in pairs(rateClassRet) do
-          
+
                 sumAllWord = sumAllWord + v
                 nCountClass = nCountClass + 1
-                
+
         end
 
         mtRateRet = torch.DoubleTensor(nCountClass):fill(0.00)
         for idx = 1, nCountClass do
-                if(rateClassRet[idx] ~= 0) then 
+                if(rateClassRet[idx] ~= 0) then
                         mtRateRet[idx] = sumAllWord*1.00 / rateClassRet[idx]
-                else 
+                else
                         mtRateRet[idx] = 0
                 end
         end
@@ -654,28 +789,28 @@ function InitData(sDictName, sDataSetName)
                 local nLastIdxMtWordVector = mtWordVector:size()[1]
                 local sizeAppendDict = rawDataInputSize - nLastIdxMtWordVector
                 mtWordVector = appendRandomDataWeightMatrix(mtWordVector,sizeAppendDict,1)
-                
-                if(g_isUseMaskZeroPadding == true)then 
+
+                if(g_isUseMaskZeroPadding == true)then
                         local mtPadding = initRandomDataWeightMatrix(1,(#mtWordVector)[2])
                         mtWordVector = torch.cat(mtPadding, mtWordVector, 1)
-                end 
-                
+                end
+
                 mtWeightInit = mtWordVector
                 mtWordIds = pairWordIds
                 mtIdWords = pairIdWords
-                
-                 
+
+
                 -- Doc bo du lieu dataset
-                -- read dataset 
+                -- read dataset
                 inputs, targets, features = loadDataSet(sDataSetName,pairWordIds,NERIds, nLastIdxMtWordVector, sizeAppendDict)
-                
+
                 -- tinh ti le bo du lieu train - test tren tung chu de
                 -- calculate rate data train : test each label
                 local _, rateTest = GetRateTrainingEachClass(DataSetGroup["targetsTest"])
                 local _, rateTrain = GetRateTrainingEachClass(DataSetGroup["targetsTrain"])
                 assert(#rateTest == g_nCountLabel and #rateTrain == g_nCountLabel,
-                        "Loi: ma tran kq co so nhan tra ve khong hop le")                
-                        
+                        "Loi: ma tran kq co so nhan tra ve khong hop le")
+
                 for k, v in pairs(rateTrain) do
                         print(string.format("Ti le train/test nhan %s: %4.2f, %4.2f",
                                 NERLabels[k], v/(rateTest[k]+v)*100.0, rateTest[k]/(rateTest[k]+v)*100.0))
@@ -683,7 +818,7 @@ function InitData(sDictName, sDataSetName)
 
         end
 
-        
+
 end
 
 

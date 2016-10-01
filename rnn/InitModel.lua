@@ -252,12 +252,24 @@ function testUseMaskzero()
                         :add(nn.MaskZero(nn.Linear(hiddenSize, numTargetClasses),1))
                         :add(nn.MaskZero(nn.LogSoftMax(),1))
         )
+ 
+--        model = nn.Sequencer(
+--        nn.MaskZero(
+--                (nn.Sequential()
+--                        :add(nn.FastLSTM(inSize,hiddenSize))
+--                        :add(nn.Linear(hiddenSize, numTargetClasses))
+--                        :add(nn.LogSoftMax())),
+--                1
+--                )
+--        )
+        
+        print(model)
 
         --criterion = nn.SequencerCriterion(nn.MaskZero(nn.ClassNLLCriterion(),1))
         criterion = nn.SequencerCriterion(nn.MaskZeroCriterion(nn.ClassNLLCriterion(),1))
 
         output = model:forward(x)
-        --print(output[1])
+        print(output[1])
 
         err = criterion:forward(output, y1)
         print(err)
@@ -356,5 +368,5 @@ function testModel2()
 end
 
 --testModel2()
-testUseMaskzero()
+--testUseMaskzero()
 

@@ -45,11 +45,12 @@ function main()
         g_countLoopForOneBatch = opt.countLoopOneBatchSize
         g_batchSentenceSize = opt.batchSentenceSize
         g_countLoopAllData = opt.countLoopAllData
-        g_iDataset = opt.iDataset
+        g_iDataset = opt.iDataset 
         g_isUseFeatureWord = opt.isUseFeatureWord
         g_trainRate = opt.trainRate
         g_nCountLabel = g_nCountLabel
         g_isUseMaskZeroPadding = opt.isUseMaskZeroPadding
+        g_isReparseBalanceData = opt.isReparseBalanceData
         
         print (opt)
 
@@ -74,6 +75,7 @@ function main()
         -- ---------------------------------------------------------------------
         netNN = InitModelNN(sNameNet,rawDataInputSize,hiddenSize,g_nCountLabel,
                 mtWeightInit, rawFeatureInputSize)
+        
         
         -- cai dat ham toi uu hoa gradient
         if(bIsUseOptimize) then 

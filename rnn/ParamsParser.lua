@@ -23,6 +23,7 @@ function ParamsParser()
         cmd:option('--iDataset', 5, 'Cai dat train bo du lieu i')
         cmd:option('--nameNet', "brnnLstm", 'Cai dat ten mang Neron: rnn/rnnLstm/brnnLstm')
         cmd:option('--isUseMaskZeroPadding', false, 'Su dung padding word cho cac cau khong cung do dai')
+        cmd:option('--isReparseBalanceData', true, 'Can bang lai ti le train:test ~ 9:1')
 
         -- loging
         cmd:text()
