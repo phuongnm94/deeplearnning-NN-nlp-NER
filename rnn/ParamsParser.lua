@@ -13,6 +13,8 @@ function ParamsParser()
         -- training
         cmd:text('Training options')
         cmd:option('--lr', 0.1, 'learning rate - Toc do hoc cua mang ')
+        cmd:option('--momentum', 0.95, 'momentum - Giam do dao dong khi hoi tu')
+        
         cmd:option('--trainRate', 0.9, 'train rate - Ti le tap hoc tren toan bo du lieu ')
         cmd:option('--isTrainBatchSentenceSameSize', true, 'Ghep cac cau co cung kich thuoc trong 1 batchInputs')
         cmd:option('--isUseOptimizeGradient', true, 'Su dung Optimize Gradient')
@@ -46,7 +48,8 @@ function ParamsParser()
                 
                 opt.rundir = cmd:string('logsFolder', {}, {dir=true})
                 paths.mkdir(opt.rundir)
-
+                
+                opt.nameLog = string.format("%s-%d.log",opt.nameLog, opt.iDataset)
                 cmd:log(opt.rundir .. '/'.. opt.nameLog, opt)
 
                 

@@ -419,7 +419,7 @@ function InitOptimizeConfig(netBRNN, opt)
                 learningRate = opt.lr,
                 learningRateDecay = 1e-4,
                 weightDecay = 0,
-                momentum = 0
+                momentum = opt.momentum
         }
 
         sgd_params1 = {
