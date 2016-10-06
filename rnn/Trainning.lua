@@ -1,6 +1,8 @@
 require('Testting')
 require('InitData')
 
+
+--[[
 ---
 -- Training dataset
 --
@@ -134,8 +136,9 @@ function TrainningEachBatchSentence(rnn, criterion, inputs, targets)
                 testing(rnn,inputs,targets,g_nCountLabel)
         end
 end
+]]
 
-
+--[[
 ---
 -- Training dataset
 --
@@ -275,7 +278,115 @@ function TrainningUseCrossvalidation(rnn, criterion, inputs, targets, nRate)
 
         return nIndexStart, nIndexEnd
 end
+]]
 
+--[[
+---
+-- Training dataset
+--
+-- @function [parent=#global] TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets)
+-- @param rnn mang can hoc
+-- @param criterion ham Loss
+-- @param inputs Tap du lieu dau vao
+-- @param targets Tap du lieu muc tieu
+-- @param nRate = ti le tap hoc
+--
+function TrainningUseOptimBatchFeaturesCrossvalidation2(rnn, criterion, inputs, targets,features, nRate)
+
+        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------------------------
+        -- TRAINING
+        -- ---------------------------------------------------------------------------------------
+        -- ---------------------------------------------------------------------------------------
+        local iteration = 1
+        local idxBatch, sizeBatch = 1, 20
+
+        local inputTest, targetTest = {}, {}
+        local countLoopForOneBatch = nil
+        local nCountLoopOneDataset = nil
+
+        local nSizeInput = #inputs
+        local nIndexStart = 1
+        local nIndexEnd = nSizeInput
+
+        -- validate input option
+        if nRate == nil or nRate <= 0 or nRate >= 1 then nRate = 0.9 end
+        if g_countLoopForOneBatch == nil then countLoopForOneBatch =5 else countLoopForOneBatch = g_countLoopForOneBatch end
+        if g_countLoopAllData == nil then nCountLoopOneDataset = 30 else nCountLoopOneDataset = g_countLoopAllData end
+
+
+        thresholdTraining =  #inputs -- math.ceil((#inputs*nRate) + 1)
+
+        local k = g_iDataset
+
+        nIndexStart = 1 --math.ceil(((k-1)*(1-nRate)*nSizeInput))%nSizeInput + 1
+        nIndexEnd = thresholdTraining --(thresholdTraining + nIndexStart )%nSizeInput
+        --nIndexEnd = nIndexStart + 10
+        print(string.format('Dataset [%d/%d] : Cau %d - Cau %d', k, 10, nIndexStart, nIndexEnd))
+
+
+        -- Tinh ma tran trong so khi tap hoc thay doi
+        local mtRateClassTraining = (GetRateTrainingEachClass(targets,nIndexStart,thresholdTraining))
+        criterion.criterion.weights = mtRateClassTraining
+
+
+        -- lap tren tung bo du lieu nhieu lan
+        for idxLoopOneDataset = 1, nCountLoopOneDataset do
+
+                iteration = nIndexStart
+                for iteration =nIndexStart, nIndexEnd do -- while iteration ~= nIndexEnd do
+
+                        -- ----------------------------------------------------------------
+                        -- Khoi tao du lieu input cho 1 cau
+                        -- ----------------------------------------------------------------
+
+                        local sentence, sentenceNERDist, sentenceFeatures = {}, {}, {}
+                        local batchInput, batchTarget = {}, {}
+                        local nCountSentence = nil
+
+                        local outputs, err
+                        local gradOutputs, gradInputs
+
+
+
+                        sentence = torch.Tensor(inputs[iteration]):t()
+
+                        sentenceNERDist = torch.Tensor(targets[iteration]):t()
+                        
+                        sentenceFeatures = torch.Tensor(features[iteration])
+                         
+                        data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
+                        
+                        nCountSentence = sentence:size()[1]
+
+                        iteration = iteration%nSizeInput + 1
+
+
+
+                        for j = 1, countLoopForOneBatch do
+
+                                -- train a mini_batch of batchSize in parallel
+                                _, fs = optim.sgd(feval,x, sgd_params)
+
+                        end
+                        
+                        if(iteration%100 == 0) then
+                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ", 
+                                        k, idxLoopOneDataset, nCountLoopOneDataset, iteration, fs[1] / nCountSentence))
+                        end
+
+
+                end
+
+                print(string.format('Dataset [%d/10] Testing in loop - %d / %d', k , idxLoopOneDataset, nCountLoopOneDataset))
+                g_result[k] = TestUseCrossvalidationParallel(rnn,inputs,targets,g_nCountLabel, nIndexStart, nIndexEnd,features)
+        end
+
+        ::EXIT_FUNCTION::
+        return nIndexStart, nIndexEnd
+
+end
+]]
 
 ---
 -- Training dataset
@@ -566,7 +677,7 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
 
 end
 
-
+--[[
 ---
 -- Training dataset
 --
@@ -577,6 +688,8 @@ end
 -- @param targets Tap du lieu muc tieu
 -- @param nRate = ti le tap hoc
 --
+
+
 function TrainningUseOptimBatchCrossvalidation2(rnn, criterion, inputs, targets, nRate)
 
         -- ---------------------------------------------------------------------------------------
@@ -671,7 +784,7 @@ function TrainningUseOptimBatchCrossvalidation2(rnn, criterion, inputs, targets,
         return nIndexStart, nIndexEnd
 
 end
-
+]]
 
 ---
 -- Training dataset
@@ -707,27 +820,29 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
         if g_countLoopAllData == nil then nCountLoopOneDataset = 30 else nCountLoopOneDataset = g_countLoopAllData end
 
 
-        thresholdTraining =  math.ceil((#inputs*nRate) + 1)
+        thresholdTraining =  #inputs 
 
         local k = g_iDataset
 
-        nIndexStart = math.ceil(((k-1)*(1-nRate)*nSizeInput))%nSizeInput + 1
-        nIndexEnd = (thresholdTraining + nIndexStart )%nSizeInput
-        --nIndexEnd = nIndexStart + 10
-        print(string.format('Dataset [%d/%d] : Cau %d - Cau %d', k, 10, nIndexStart, nIndexEnd))
-
-
+        nIndexStart = 1 
+        nIndexEnd = thresholdTraining 
+        print(string.format('Dataset [%d/%d] : ', k, 10))
+       
+       
         -- Tinh ma tran trong so khi tap hoc thay doi
-        local mtRateClassTraining = (GetRateTrainingEachClass(targets,nIndexStart,thresholdTraining))
-        criterion.criterion.weights = mtRateClassTraining
+        --local mtRateClassTraining = (GetRateTrainingEachClass(targets,nIndexStart,thresholdTraining))
+        --criterion.criterion.weights = mtRateClassTraining
 
 
         -- lap tren tung bo du lieu nhieu lan
         for idxLoopOneDataset = 1, nCountLoopOneDataset do
+                
+                local indicates = torch.randperm(nIndexEnd)
+                
+                for idx = nIndexStart, nIndexEnd do
 
-                iteration = nIndexStart
-                while iteration ~= nIndexEnd do
-
+                        iteration = indicates[idx]
+                        
                         -- ----------------------------------------------------------------
                         -- Khoi tao du lieu input cho 1 cau
                         -- ----------------------------------------------------------------
@@ -741,19 +856,15 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
 
 
 
-                        sentence = torch.Tensor(inputs[iteration]):t()
+                        sentence = torch.Tensor(inputs[iteration])
 
-                        sentenceNERDist = torch.Tensor(targets[iteration]):t()
+                        sentenceNERDist = torch.Tensor(targets[iteration])
                         
                         sentenceFeatures = torch.Tensor(features[iteration])
-                         
+                        
                         data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
                         
                         nCountSentence = sentence:size()[1]
-
-                        iteration = iteration%nSizeInput + 1
-
-
 
                         for j = 1, countLoopForOneBatch do
 
@@ -772,7 +883,13 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
                 end
 
                 print(string.format('Dataset [%d/10] Testing in loop - %d / %d', k , idxLoopOneDataset, nCountLoopOneDataset))
-                g_result[k] = TestUseCrossvalidationParallel(rnn,inputs,targets,g_nCountLabel, nIndexStart, nIndexEnd,features)
+                g_result[k] = TestUseCrossvalidationParallel(
+                        rnn,
+                        DataSetGroup["inputsTest"],
+                        DataSetGroup["targetsTest"],
+                        g_nCountLabel, 
+                        nIndexStart, nIndexEnd,
+                        DataSetGroup["featuresTest"])
         end
 
         ::EXIT_FUNCTION::
@@ -780,108 +897,3 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
 
 end
 
----
--- Training dataset
---
--- @function [parent=#global] TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets)
--- @param rnn mang can hoc
--- @param criterion ham Loss
--- @param inputs Tap du lieu dau vao
--- @param targets Tap du lieu muc tieu
--- @param nRate = ti le tap hoc
---
-function TrainningUseOptimBatchFeaturesCrossvalidation2(rnn, criterion, inputs, targets,features, nRate)
-
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
-        -- TRAINING
-        -- ---------------------------------------------------------------------------------------
-        -- ---------------------------------------------------------------------------------------
-        local iteration = 1
-        local idxBatch, sizeBatch = 1, 20
-
-        local inputTest, targetTest = {}, {}
-        local countLoopForOneBatch = nil
-        local nCountLoopOneDataset = nil
-
-        local nSizeInput = #inputs
-        local nIndexStart = 1
-        local nIndexEnd = nSizeInput
-
-        -- validate input option
-        if nRate == nil or nRate <= 0 or nRate >= 1 then nRate = 0.9 end
-        if g_countLoopForOneBatch == nil then countLoopForOneBatch =5 else countLoopForOneBatch = g_countLoopForOneBatch end
-        if g_countLoopAllData == nil then nCountLoopOneDataset = 30 else nCountLoopOneDataset = g_countLoopAllData end
-
-
-        thresholdTraining =  #inputs -- math.ceil((#inputs*nRate) + 1)
-
-        local k = g_iDataset
-
-        nIndexStart = 1 --math.ceil(((k-1)*(1-nRate)*nSizeInput))%nSizeInput + 1
-        nIndexEnd = thresholdTraining --(thresholdTraining + nIndexStart )%nSizeInput
-        --nIndexEnd = nIndexStart + 10
-        print(string.format('Dataset [%d/%d] : Cau %d - Cau %d', k, 10, nIndexStart, nIndexEnd))
-
-
-        -- Tinh ma tran trong so khi tap hoc thay doi
-        local mtRateClassTraining = (GetRateTrainingEachClass(targets,nIndexStart,thresholdTraining))
-        criterion.criterion.weights = mtRateClassTraining
-
-
-        -- lap tren tung bo du lieu nhieu lan
-        for idxLoopOneDataset = 1, nCountLoopOneDataset do
-
-                iteration = nIndexStart
-                for iteration =nIndexStart, nIndexEnd do -- while iteration ~= nIndexEnd do
-
-                        -- ----------------------------------------------------------------
-                        -- Khoi tao du lieu input cho 1 cau
-                        -- ----------------------------------------------------------------
-
-                        local sentence, sentenceNERDist, sentenceFeatures = {}, {}, {}
-                        local batchInput, batchTarget = {}, {}
-                        local nCountSentence = nil
-
-                        local outputs, err
-                        local gradOutputs, gradInputs
-
-
-
-                        sentence = torch.Tensor(inputs[iteration]):t()
-
-                        sentenceNERDist = torch.Tensor(targets[iteration]):t()
-                        
-                        sentenceFeatures = torch.Tensor(features[iteration])
-                         
-                        data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
-                        
-                        nCountSentence = sentence:size()[1]
-
-                        iteration = iteration%nSizeInput + 1
-
-
-
-                        for j = 1, countLoopForOneBatch do
-
-                                -- train a mini_batch of batchSize in parallel
-                                _, fs = optim.sgd(feval,x, sgd_params)
-
-                        end
-                        
-                        if(iteration%100 == 0) then
-                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ", 
-                                        k, idxLoopOneDataset, nCountLoopOneDataset, iteration, fs[1] / nCountSentence))
-                        end
-
-
-                end
-
-                print(string.format('Dataset [%d/10] Testing in loop - %d / %d', k , idxLoopOneDataset, nCountLoopOneDataset))
-                g_result[k] = TestUseCrossvalidationParallel(rnn,inputs,targets,g_nCountLabel, nIndexStart, nIndexEnd,features)
-        end
-
-        ::EXIT_FUNCTION::
-        return nIndexStart, nIndexEnd
-
-end

@@ -258,7 +258,7 @@ function splitDataSet(inputs, targets,features, sizeSentencesInfo, sizeSplit)
         local idxMtInputsSplit, nSizeMtInputsSplit = 1, 0
         local idxInputsSplit = 1
 
-
+        print(#features)
         for sizeSentence, lstIdSentence in pairs(sizeSentencesInfo) do
 
                 local sizeList, idxList = #lstIdSentence, 1
@@ -457,7 +457,7 @@ function reIndexDataset(inputs, targets, features)
         local infoLabelToSentence = {}
         local infoSizeLabelSubDataset = torch.Tensor(g_nCountLabel):fill(0)
         local mtDatasetIsUsed = torch.Tensor(#targets):fill(0)
-
+        
         -- khoi tao tap thong tin cho tung nhan
         for i =1, g_nCountLabel do infoLabelToSentence [i] = {} end
 
@@ -539,18 +539,27 @@ function loadDataSet(sPathFileDataSet, pairWordIds, NERIds,nLastIdxMtWordVector,
         inputs, targets, g_sizeSentencesInfo, features=
                 getDataSentenceFrom2(sPathFileDataSet,pairWordIds,NERIds,nLastIdxMtWordVector, sizeAppendDict)
         assert(#inputs == #targets, 'Input vs Target is not same size')
+        --g_
 
         if(g_isReparseBalanceData == true) then 
+        
                 DataSet["inputsTrain"] = tableEx({})
                 DataSet["targetsTrain"] = tableEx({})
+                DataSet["featuresTrain"] = tableEx({})
                 inputsNew, targetsNew, featuresNew = reIndexDataset(inputs, targets, features)
                 for idxDataset=1, 10 do
                         if idxDataset == g_iDataset then
                                 DataSet["inputsTest"] = inputsNew[idxDataset]
                                 DataSet["targetsTest"] = targetsNew[idxDataset]
-                        else
+                                if g_isUseFeatureWord then 
+                                        DataSet["featuresTest"] = featuresNew[idxDataset]
+                                end
+                        else    
                                 DataSet["inputsTrain"] = DataSet["inputsTrain"]:append(inputsNew[idxDataset])
                                 DataSet["targetsTrain"] = DataSet["targetsTrain"]:append(targetsNew[idxDataset])
+                                if g_isUseFeatureWord then
+                                        DataSet["featuresTrain"] = DataSet["featuresTrain"]:append(featuresNew[idxDataset])
+                                end
                         end
                 end
         else 
@@ -803,6 +812,9 @@ function InitData(sDictName, sDataSetName)
                 -- Doc bo du lieu dataset
                 -- read dataset
                 inputs, targets, features = loadDataSet(sDataSetName,pairWordIds,NERIds, nLastIdxMtWordVector, sizeAppendDict)
+                if(g_isUseFeatureWord == true ) then 
+                        g_nFeatureDims = #DataSet["featuresTrain"][1][1]
+                end
 
                 -- tinh ti le bo du lieu train - test tren tung chu de
                 -- calculate rate data train : test each label
