@@ -107,7 +107,7 @@ function main()
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------
         local nIndexStart, nIndexEnd  = 1,200
-        goto _BEGIN_TEST
+        --goto _BEGIN_TEST
 
         if(bIsUseOptimize) then
                 if(g_isUseFeatureWord == false) then
