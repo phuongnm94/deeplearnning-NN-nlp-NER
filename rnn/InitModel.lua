@@ -3,6 +3,47 @@ require ('rnn')
 require('InitData')
 
 
+
+---
+-- Cai dat du lieu dau vao
+--
+-- @function [parent=#InitModel] GetInputEmbeddedLayer(rawDataInputSize, hiddenSize, mtWeightInit, bIsUseFeatures, rawFeatureInputSize)
+-- @param rawDataInputSize so chieu vector du lieu dau vao = kich thuoc tu dien
+-- @param hiddenSize so chieu tang an
+-- @param mtWeightInit ma tran khoi tao word to vect
+-- @param bIsUseFeatures su dung cac dac trung ngon ngu bo sung
+-- @param rawFeatureInputSize so chieu cua vector dac trung ngon ngu
+local function GetInputEmbeddedLayer2(rawDataInputSize, hiddenSize, mtWeightInit, bIsUseFeatures, rawFeatureInputSize)
+
+        local module = nil
+
+        -- xu ly input data {wordVetor, featuresVector}
+        local w2v = nil
+        if g_isUseMaskZeroPadding == true then
+                w2v = nn.LookupTableMaskZero(rawDataInputSize, hiddenSize)
+        else
+                w2v = nn.LookupTable(rawDataInputSize, hiddenSize)
+        end
+
+
+        if(mtWeightInit ~= nil) then
+                w2v.weight = mtWeightInit
+        end
+
+        if(bIsUseFeatures~= nil and bIsUseFeatures == true) then
+                -- cai dat ma tran features
+                --local feature = nn.Sequencer(nn.Linear(rawFeatureInputSize, hiddenSize))
+                module = nn.Sequential()
+                        :add(nn.ParallelTable():add(w2v):add(nn.CAddTable()))
+                        :add(nn.JoinTable(3))
+        else
+                module = w2v
+        end
+
+        ::_EXIT_FUNCTION::
+        return module
+end
+
 ---
 -- Cai dat du lieu dau vao
 --
@@ -65,7 +106,7 @@ function InitModelNN(sModelName, rawDataInputSize, hiddenSize, nCountLabel, mtWe
 
         local inputLayer = GetInputEmbeddedLayer(rawDataInputSize,hiddenSize,
                 mtWeightInit,g_isUseFeatureWord,rawFeatureInputSize)
-
+        
         -- mang rnn co ban
         if(sModelName == 'rnn') then
                 -- build simple recurrent neural network
@@ -104,9 +145,9 @@ function InitModelNN(sModelName, rawDataInputSize, hiddenSize, nCountLabel, mtWe
         if (sModelName == "rnnLstm") then
 
                 local rnnLstm, linear, softmax
-                
+
                 -- cai dat cac tang co ban
-                -- init basic Layer of net 
+                -- init basic Layer of net
                 rnnLstm = nn.SeqLSTM(hiddenSize, math.ceil(hiddenSize/2))
                 rnnLstm.batchfirst = true
                 linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
@@ -123,8 +164,8 @@ function InitModelNN(sModelName, rawDataInputSize, hiddenSize, nCountLabel, mtWe
                         softmax = nn.Sequencer(softmax)
                 end
 
-                -- cai dat mang chinh 
-                -- init net 
+                -- cai dat mang chinh
+                -- init net
                 module = nn.Sequential()
                         :add(inputLayer)
                         :add(rnnLstm)
@@ -137,39 +178,170 @@ function InitModelNN(sModelName, rawDataInputSize, hiddenSize, nCountLabel, mtWe
 
         -- ---------------------------------------------------------------------------------------
         -- mang brnn - ket hop lstm
-        if (module == nil or sModelName == "brnnLstm") then
-
-                local brnn, linear, softmax
-
-                -- cai dat cac tang co ban
-                -- init basic Layer of net
-                brnn = nn.SeqBRNN(hiddenSize, math.ceil(hiddenSize/2), true)
-                linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
-                softmax = nn.LogSoftMax()
-
-                -- Cai dat sequencer va maskzero cho cac layer
-                -- init option sequencer & maskzero
-                if(g_isUseMaskZeroPadding == true) then
-                        brnn.forwardModule.maskzero = true
-                        brnn.backwardModule.maskzero = true
-                        linear = nn.Sequencer(nn.MaskZero(linear, 1))
-                        softmax = nn.Sequencer(nn.MaskZero(softmax, 1))
+        if (sModelName == "brnnLstm") then
+                if g_isUseFeatureWord == false then
                         
+                        local brnn, linear, softmax
+
+                        -- cai dat cac tang co ban
+                        -- init basic Layer of net
+                        brnn = nn.SeqBRNN(hiddenSize, math.ceil(hiddenSize/2), true)
+                        linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
+                        softmax = nn.LogSoftMax()
+
+                        -- Cai dat sequencer va maskzero cho cac layer
+                        -- init option sequencer & maskzero
+                        if(g_isUseMaskZeroPadding == true) then
+                                brnn.forwardModule.maskzero = true
+                                brnn.backwardModule.maskzero = true
+                                linear = nn.Sequencer(nn.MaskZero(linear, 1))
+                                softmax = nn.Sequencer(nn.MaskZero(softmax, 1))
+
+                        else
+                                linear = nn.Sequencer(linear)
+                                softmax = nn.Sequencer(softmax)
+                        end
+
+                        -- cai dat mang chinh
+                        -- init net
+                        module = nn.Sequential()
+                                :add(inputLayer)
+                                :add(brnn)
+                                :add(linear)
+                                :add(softmax)
+                       
+                       goto _EXIT_FUNCTION_
                 else
-                        linear = nn.Sequencer(linear)
-                        softmax = nn.Sequencer(softmax)
-                end
+                        -- features co ban - add truc tiep vao tang dau tien
+                        -- inputdims = hiddensize
+                        if(g_iModelTest ==  0) then
+                                
+                                -- Bo sung linguistic features
+                                local brnn, linear, softmax
+                                
+                                inputLayer = GetInputEmbeddedLayer(rawDataInputSize,hiddenSize,
+                                        mtWeightInit,g_isUseFeatureWord,rawFeatureInputSize)
+                                        
+                                -- cai dat cac tang co ban
+                                -- init basic Layer of net
+                                brnn = nn.SeqBRNN(hiddenSize, math.ceil(hiddenSize/2), true)
+                                linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
+                                softmax = nn.LogSoftMax()
 
-                -- cai dat mang chinh 
-                -- init net 
-                module = nn.Sequential()
-                        :add(inputLayer)
-                        :add(brnn)
-                        :add(linear)
-                        :add(softmax)
+                                -- Cai dat sequencer va maskzero cho cac layer
+                                -- init option sequencer & maskzero
+                                if(g_isUseMaskZeroPadding == true) then
+                                        brnn.forwardModule.maskzero = true
+                                        brnn.backwardModule.maskzero = true
+                                        linear = nn.Sequencer(nn.MaskZero(linear, 1))
+                                        softmax = nn.Sequencer(nn.MaskZero(softmax, 1))
+
+                                else
+                                        linear = nn.Sequencer(linear)
+                                        softmax = nn.Sequencer(softmax)
+                                end
+
+                                -- cai dat mang chinh
+                                -- init net
+                                module = nn.Sequential()
+                                        :add(inputLayer)
+                                        :add(brnn)
+                                        :add(linear)
+                                        :add(softmax)
+                                goto _EXIT_FUNCTION_
+                        end 
                         
-                goto _EXIT_FUNCTION_
---[[dfd]]
+                        -- features co ban - Join vao input tang dau tien 
+                        -- inputdims = hiddensize + featuresDimes
+                        if(g_iModelTest ==  1) then
+                                -- Bo sung linguistic features
+                                local brnn, linear, softmax
+
+                                inputLayer = GetInputEmbeddedLayer2(rawDataInputSize,hiddenSize,
+                                        mtWeightInit,g_isUseFeatureWord,rawFeatureInputSize)
+
+                                -- cai dat cac tang co ban
+                                -- init basic Layer of net
+                                brnn = nn.SeqBRNN(hiddenSize+rawFeatureInputSize, math.ceil(hiddenSize/2), true)
+                                linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
+                                softmax = nn.LogSoftMax()
+
+                                -- Cai dat sequencer va maskzero cho cac layer
+                                -- init option sequencer & maskzero
+                                if(g_isUseMaskZeroPadding == true) then
+                                        brnn.forwardModule.maskzero = true
+                                        brnn.backwardModule.maskzero = true
+                                        linear = nn.Sequencer(nn.MaskZero(linear, 1))
+                                        softmax = nn.Sequencer(nn.MaskZero(softmax, 1))
+
+                                else
+                                        linear = nn.Sequencer(linear)
+                                        softmax = nn.Sequencer(softmax)
+                                end
+
+                                -- cai dat mang chinh
+                                -- init net
+                                module = nn.Sequential()
+                                        :add(inputLayer)
+                                        :add(brnn)
+                                        :add(linear)
+                                        :add(softmax)
+                                goto _EXIT_FUNCTION_
+                        end 
+                        
+                        -- features nang cao - Add vao input tang cuoi cung 
+                        if(g_iModelTest ==  2) then
+                        
+                                -- Bo sung linguistic features
+                                local brnn, linear, softmax
+
+                                inputLayer = GetInputEmbeddedLayer(rawDataInputSize,hiddenSize,
+                                        mtWeightInit,false,rawFeatureInputSize)
+
+                                -- cai dat cac tang co ban
+                                -- init basic Layer of net
+                                brnn = nn.SeqBRNN(hiddenSize, math.ceil(hiddenSize/2), true)
+                                
+                                local brnnCover = nn.Sequential():add(inputLayer) :add(brnn)
+                                local feature = nn.Sequencer(
+                                                        nn.Sequential()
+                                                                :add(nn.Tanh())
+                                                                :add(nn.Linear(rawFeatureInputSize, hiddenSize/2))
+                                                )
+                                local inputCover = nn.Sequential() 
+                                        :add(nn.ParallelTable(): add(brnnCover) :add(feature))
+                                        :add(nn.CAddTable())
+                                
+                                linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
+                                softmax = nn.LogSoftMax()
+
+                                -- Cai dat sequencer va maskzero cho cac layer
+                                -- init option sequencer & maskzero
+                                if(g_isUseMaskZeroPadding == true) then
+                                        brnn.forwardModule.maskzero = true
+                                        brnn.backwardModule.maskzero = true
+                                        linear = nn.Sequencer(nn.MaskZero(linear, 1))
+                                        softmax = nn.Sequencer(nn.MaskZero(softmax, 1))
+
+                                else
+                                        linear = nn.Sequencer(linear)
+                                        softmax = nn.Sequencer(softmax)
+                                end
+
+                                -- cai dat mang chinh
+                                -- init net
+                                module = nn.Sequential()
+                                        --:add(inputLayer)
+                                        --:add(brnn)
+                                        :add(inputCover)
+                                        :add(linear)
+                                        :add(softmax)
+                                        
+                                goto _EXIT_FUNCTION_
+                        end                        
+                
+                end
+                
         end
 
         -- ---------------------------------------------------------------------------------------
@@ -238,31 +410,31 @@ function testUseMaskzero()
                         targets = torch.cat(torch.zeros(seqLengthMax-seqLength),(torch.rand(seqLength)*numTargetClasses):ceil())
                 end
                 temp[{{seqLengthMax-seqLength+1,seqLengthMax}}] = torch.randn(seqLength,inSize)
-              
+
                 table.insert(x, temp)
                 table.insert(y1, targets)
                 --print (temp, targets)
-                
+
         end
-        
-        
+
+
         model = nn.Sequencer(
                 nn.Sequential()
                         :add(nn.MaskZero(nn.FastLSTM(inSize,hiddenSize),1))
                         :add(nn.MaskZero(nn.Linear(hiddenSize, numTargetClasses),1))
                         :add(nn.MaskZero(nn.LogSoftMax(),1))
         )
- 
---        model = nn.Sequencer(
---        nn.MaskZero(
---                (nn.Sequential()
---                        :add(nn.FastLSTM(inSize,hiddenSize))
---                        :add(nn.Linear(hiddenSize, numTargetClasses))
---                        :add(nn.LogSoftMax())),
---                1
---                )
---        )
-        
+
+        --        model = nn.Sequencer(
+        --        nn.MaskZero(
+        --                (nn.Sequential()
+        --                        :add(nn.FastLSTM(inSize,hiddenSize))
+        --                        :add(nn.Linear(hiddenSize, numTargetClasses))
+        --                        :add(nn.LogSoftMax())),
+        --                1
+        --                )
+        --        )
+
         print(model)
 
         --criterion = nn.SequencerCriterion(nn.MaskZero(nn.ClassNLLCriterion(),1))
@@ -277,96 +449,217 @@ end
 
 function testModel2()
 
+        local countSentence = 2
+        local countWordOneSentence = 7
+
         local hiddenSize =20
         local nCountLabel = 9
         local rawDataInputSize = 40
         local rawFeatureInputSize = 15
-        
-        local inputData, outputData
 
-        g_isUseFeatureWord = false
-        g_isUseMaskZeroPadding = true
+        local inputData, inputDataFirst, outputData
+
+        g_isUseFeatureWord = true
+        g_isUseMaskZeroPadding = false
         g_nCountLabel = nCountLabel
         mtWeightInit = nil
 
---        local net = nn.LookupTableMaskZero(rawDataInputSize, hiddenSize)
---        local netNormal = nn.LookupTable(rawDataInputSize, hiddenSize)
---
---        print (net.weight)
---        print (netNormal.weight)
-
         -- layer 1 - parse input
-        local inputNet = GetInputEmbeddedLayer(rawDataInputSize,hiddenSize,
+        local inputNet = GetInputEmbeddedLayer2(rawDataInputSize,hiddenSize,
                 mtWeightInit,g_isUseFeatureWord,rawFeatureInputSize)
-        
-        local inputLookupTbl=  torch.Tensor(2,7):apply(
+
+        -- random input data
+        local inputData=  torch.Tensor(countSentence, countWordOneSentence):apply(
                 function ()
                         return torch.random(1,rawDataInputSize)
                 end
         )
+        if(g_isUseMaskZeroPadding) then
+                inputData[1][ (#inputData[1])[1] ] = 0
+                inputData[1][ (#inputData[1])[1]-1 ] = 0
+        end
 
-        inputLookupTbl[1][ (#inputLookupTbl[1])[1] ] = 0
-        inputLookupTbl[1][ (#inputLookupTbl[1])[1]-1 ] = 0
-        print(inputLookupTbl)
+        if(g_isUseFeatureWord) then
+                local feature = torch.Tensor(countSentence, countWordOneSentence, rawFeatureInputSize):apply(
+                        function ()
+                                return torch.random(100) % 2
+                        end
+                )
+                inputData = {inputData, {feature}}
+        end
 
-        local net  = inputNet 
-        local outputData = net:forward(inputLookupTbl)
+        inputDataFirst = inputData
+        print(inputData)
+
+        local net  = inputNet
+        print(net)
+
+        local outputData = net:forward(inputData)
+
+        print((net.modules)[1].output[1])
+        print((net.modules)[1].output[2])
+
         local _, outNetIdx = outputData:topk(1, true)
 
         print(outputData)
         print(outNetIdx)
-        
+
+
         print '==============================================================='
-        
-        
+
+
         -- layer 2 - brnn
-        local seqlstm = nn.SeqLSTM(hiddenSize, math.ceil(hiddenSize/2))
+        local seqlstm = nn.SeqLSTM(hiddenSize+rawFeatureInputSize, math.ceil(hiddenSize/2))
         seqlstm.maskzero = true
         seqlstm.batchfirst = true
-        
-        local seqbrnn = nn.SeqBRNN(hiddenSize, math.ceil(hiddenSize/2), true)
+
+        local seqbrnn = nn.SeqBRNN(hiddenSize+rawFeatureInputSize, math.ceil(hiddenSize/2), true)
         seqbrnn.forwardModule.maskzero = true
         seqbrnn.backwardModule.maskzero = true
         print (seqbrnn)
-        
 
---        if(g_isUseMaskZeroPadding == true) then
---                brnn.maskzero = true
---        end
-        
+
+        --        if(g_isUseMaskZeroPadding == true) then
+        --                brnn.maskzero = true
+        --        end
+
         net = seqbrnn
-        
+
         inputData = outputData
         print (inputData)
         local outputData = net:forward(inputData)
-        
+        print(outputData)
+
         print '==============================================================='
-        
+
         -- layer 3 - Linear
         net = nn.Sequencer(nn.MaskZero(nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel), 1))
-        
+
         inputData = outputData
         print (inputData)
         local outputData = net:forward(inputData)
-        
+
         print '==============================================================='
-        
+
         -- layer 4 - logsofmax
         net =  nn.Sequencer(nn.MaskZero(nn.LogSoftMax(),1))
         inputData = outputData
         print (inputData)
         local outputData = net:forward(inputData)
         print (outputData)
-        
+
         print '==============================================================='
         net = InitModelNN("brnn",rawDataInputSize,hiddenSize,g_nCountLabel,
                 mtWeightInit,rawFeatureInputSize)
-                
-        outNet = (net:forward(inputLookupTbl))
+
+        outNet = (net:forward(inputDataFirst))
+        local _, outNetIdx = outNet:topk(1, true)
+        print(outNetIdx)
+end
+
+function testModel3()
+
+        local countSentence = 2
+        local countWordOneSentence = 7
+
+        local hiddenSize =20
+        local nCountLabel = 9
+        local rawDataInputSize = 40
+        local rawFeatureInputSize = 15
+
+        local inputData, inputDataFirst, outputData
+        local inputFeature
+
+        g_isUseFeatureWord = true
+        g_isUseMaskZeroPadding = false
+        g_nCountLabel = nCountLabel
+        g_iModelTest = 2
+        mtWeightInit = nil
+        
+
+        -- layer 1 - parse input
+        local inputNet = GetInputEmbeddedLayer2(rawDataInputSize,hiddenSize,
+                mtWeightInit,false,rawFeatureInputSize)
+        local seqbrnn = nn.SeqBRNN(hiddenSize, math.ceil(hiddenSize/2), true)
+
+        -- random input data
+        local inputData=  torch.Tensor(countSentence, countWordOneSentence):apply(
+                function ()
+                        return torch.random(1,rawDataInputSize)
+                end
+        )
+        if(g_isUseMaskZeroPadding) then
+                inputData[1][ (#inputData[1])[1] ] = 0
+                inputData[1][ (#inputData[1])[1]-1 ] = 0
+        end
+
+        if(g_isUseFeatureWord) then
+                inputFeature = torch.Tensor(countSentence, countWordOneSentence, rawFeatureInputSize):apply(
+                        function ()
+                                return torch.random(100) % 2
+                        end
+                )
+        end
+
+        inputDataFirst = inputData
+        print(inputData)
+
+        local net  = inputNet
+        print(net)
+
+        local outputData = net:forward(inputData)
+
+        print(outputData)
+
+
+        print '==============================================================='
+
+
+        -- layer 2 - brnn
+        local brnnCover = nn.Sequential():add(inputNet):add(seqbrnn)
+        local feature = nn.Sequencer(nn.Linear(rawFeatureInputSize, hiddenSize/2))
+        local inputCover = nn.Sequential() 
+                :add(nn.ParallelTable(): add(brnnCover) :add(feature))
+                :add(nn.CAddTable())
+        
+        net = inputCover
+        print(net)
+        
+        local outputData = net:forward({inputDataFirst, inputFeature})
+        print(outputData)
+        --assert(false, 'hi')
+        print '==============================================================='
+
+        -- layer 3 - Linear
+        net = nn.Sequencer(--[[nn.MaskZero]](nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)--[[, 1]]))
+
+        inputData = outputData
+        print (inputData)
+        local outputData = net:forward(inputData)
+
+        print '==============================================================='
+
+        -- layer 4 - logsofmax
+        net =  nn.Sequencer(--[[nn.MaskZero]](nn.LogSoftMax()--[[,1]]))
+        inputData = outputData
+        print (inputData)
+        local outputData = net:forward(inputData)
+        print (outputData)
+
+        print '==============================================================='
+        
+        g_iModelTest = 2
+        g_isUseFeatureWord = true
+        net = InitModelNN("brnnLstm",rawDataInputSize,hiddenSize,g_nCountLabel,
+                mtWeightInit,rawFeatureInputSize)
+
+        outNet = (net:forward({inputDataFirst, inputFeature}))
+        print(outNet)
         local _, outNetIdx = outNet:topk(1, true)
         print(outNetIdx)
 end
 
 --testModel2()
 --testUseMaskzero()
+--testModel3()
 

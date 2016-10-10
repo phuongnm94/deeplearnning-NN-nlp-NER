@@ -50,6 +50,7 @@ function main()
         g_isUseMaskZeroPadding = opt.isUseMaskZeroPadding
         g_isReparseBalanceData = opt.isReparseBalanceData
         g_isUseFeatureWord = opt.isUseFeatureWord
+        g_iModelTest = opt.iModelTest
         g_nFeatureDims = nil
 
         print (opt)
@@ -74,12 +75,13 @@ function main()
         -- ---------------------------------------------------------------------
         netNN = InitModelNN(sNameNet,rawDataInputSize,hiddenSize,g_nCountLabel,
                 mtWeightInit, g_nFeatureDims)
-
-
+        --print(netNN)
+        
         -- cai dat ham toi uu hoa gradient
         if(bIsUseOptimize) then
                 InitOptimizeConfig(netNN, opt)
         end
+
 
 
         -- ---------------------------------------------------------------------
@@ -107,7 +109,7 @@ function main()
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------
         local nIndexStart, nIndexEnd  = 1,200
-        --goto _BEGIN_TEST
+        goto _BEGIN_TEST
 
         if(bIsUseOptimize) then
                 if(g_isUseFeatureWord == false) then

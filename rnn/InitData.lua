@@ -258,7 +258,6 @@ function splitDataSet(inputs, targets,features, sizeSentencesInfo, sizeSplit)
         local idxMtInputsSplit, nSizeMtInputsSplit = 1, 0
         local idxInputsSplit = 1
 
-        print(#features)
         for sizeSentence, lstIdSentence in pairs(sizeSentencesInfo) do
 
                 local sizeList, idxList = #lstIdSentence, 1
@@ -539,7 +538,6 @@ function loadDataSet(sPathFileDataSet, pairWordIds, NERIds,nLastIdxMtWordVector,
         inputs, targets, g_sizeSentencesInfo, features=
                 getDataSentenceFrom2(sPathFileDataSet,pairWordIds,NERIds,nLastIdxMtWordVector, sizeAppendDict)
         assert(#inputs == #targets, 'Input vs Target is not same size')
-        --g_
 
         if(g_isReparseBalanceData == true) then 
         
@@ -617,7 +615,7 @@ function loadDataSet(sPathFileDataSet, pairWordIds, NERIds,nLastIdxMtWordVector,
 
                         goto _END_SPLIT_DATA
                 end
-
+                
                 DataSetGroup["inputsTrain"], DataSetGroup["targetsTrain"], DataSetGroup["featuresTrain"]
                 =  splitDataSet(DataSet["inputsTrain"] ,DataSet["targetsTrain"] ,
                         DataSet["featuresTrain"] , DataSizeInfo["inputsTrain"], g_batchSentenceSize)
