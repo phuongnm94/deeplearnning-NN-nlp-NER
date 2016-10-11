@@ -863,7 +863,7 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
                         sentenceFeatures = torch.Tensor(features[iteration])
                         
                         if(g_iModelTest == 1) then 
-                                data["inputs"], data["targets"] = {sentence, {sentenceFeatures}}, sentenceNERDist
+                                data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
                         else
                                 data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
                         end

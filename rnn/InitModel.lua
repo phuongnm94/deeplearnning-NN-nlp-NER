@@ -1,7 +1,7 @@
 require ('nn')
 require ('rnn')
 require('InitData')
-
+require 'nninit'
 
 
 ---
@@ -32,9 +32,12 @@ local function GetInputEmbeddedLayer2(rawDataInputSize, hiddenSize, mtWeightInit
 
         if(bIsUseFeatures~= nil and bIsUseFeatures == true) then
                 -- cai dat ma tran features
-                --local feature = nn.Sequencer(nn.Linear(rawFeatureInputSize, hiddenSize))
+                local linear = nn.Linear(rawFeatureInputSize, rawFeatureInputSize)
+                linear:init('weight', nninit.xavier)
+                local feature = nn.Sequencer(linear)
+                
                 module = nn.Sequential()
-                        :add(nn.ParallelTable():add(w2v):add(nn.CAddTable()))
+                        :add(nn.ParallelTable():add(w2v):add(feature--[[nn.CAddTable()]]))
                         :add(nn.JoinTable(3))
         else
                 module = w2v
