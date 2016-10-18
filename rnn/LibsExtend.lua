@@ -378,6 +378,10 @@ function getDataSentenceFrom2(sPathFileDataSet, pairWordIds, NERIds, nLastIdxWor
                         
                         -- Them nhan cua tu vao tap nhan cua cau
                         tmpNERSentence[idxWord] = NERIds[elements[3]]
+                        if(NERIds[elements[3]] == nil) then 
+                                print ('[Warnning] NER in dataset : ', elements[1], elements[3])
+                                tmpNERSentence[idxWord] = NERIds["O"]
+                        end
                         
                         -- Them vector features tung tu cho cau 
                         for i=3,1,-1 do

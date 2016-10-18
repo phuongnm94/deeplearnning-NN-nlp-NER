@@ -34,7 +34,7 @@ function main()
         bIsUseOptimize = opt.isUseOptimizeGradient
 
         -- hyper-parameters
-        rawDataInputSize = 25000        -- so chieu vector
+        rawDataInputSize = 46000        -- so chieu vector 
 
         rho = 512                       -- so tu trong 1 cau ~ co the thay doi theo cau
         hiddenSize = 200                -- so chieu vector sinh boi word to vec

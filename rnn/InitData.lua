@@ -66,12 +66,14 @@ function getNERIds ()
 
 
         NERIds["B-LOC"] = 2
+        NERIds["B-LOCO"] = 2
         NERIds["I-LOC"] = 3
         NERLabels[2] = "B-LOC"
         NERLabels[3] = "I-LOC"
 
         NERIds["B-ORG"] = 4
         NERIds["I-ORG"] = 5
+        NERIds["I-ORGO"] = 5
         NERLabels[4] = "B-ORG"
         NERLabels[5] = "I-ORG"
 
@@ -531,10 +533,10 @@ end
 --
 function loadDataSet(sPathFileDataSet, pairWordIds, NERIds,nLastIdxMtWordVector, sizeAppendDict)
 
-        -- load data file
         local inputs, targets, features, inputsNew, targetsNew, featuresNew
         DataSet, DataSizeInfo, DataSetGroup = {}, {}, {}
 
+        -- Doc du lieu file tu dien 
         inputs, targets, g_sizeSentencesInfo, features=
                 getDataSentenceFrom2(sPathFileDataSet,pairWordIds,NERIds,nLastIdxMtWordVector, sizeAppendDict)
         assert(#inputs == #targets, 'Input vs Target is not same size')
