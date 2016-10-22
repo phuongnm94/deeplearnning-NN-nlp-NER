@@ -436,13 +436,13 @@ function TrainningUseCrossvalidationParallel(rnn, criterion, inputs, targets, nR
         --        local mtRateClassTraining = (GetRateTrainingEachClass(targets,nIndexStart,thresholdTraining))
         --        criterion.criterion.weights = mtRateClassTraining
         for idxLoopOneDataset = 1, nCountLoopOneDataset do
-                
+
                 local indicates = torch.randperm(nIndexEnd)
-                
+
                 for idx = nIndexStart, nIndexEnd do
 
                         iteration = indicates[idx]
-                        
+
                         -- ----------------------------------------------------------------
                         -- Khoi tao du lieu input cho 1 cau
                         -- ----------------------------------------------------------------
@@ -474,7 +474,7 @@ function TrainningUseCrossvalidationParallel(rnn, criterion, inputs, targets, nR
                                 rnn:zeroGradParameters()
 
                                 outputs = rnn:forward(sentence)
-                                
+
 
                                 err = criterion:forward(outputs, sentenceNERDist)
                                 print(outputs)
@@ -497,7 +497,7 @@ function TrainningUseCrossvalidationParallel(rnn, criterion, inputs, targets, nR
 
 
                         if(iteration%100 == 1) then
-                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ", 
+                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ",
                                         k, idxLoopOneDataset,nCountLoopOneDataset, iteration, err))
                         end
 
@@ -545,27 +545,27 @@ function InitOptimizeConfig(netBRNN, opt)
                 targets = nil
         }
 
-        feval = function(x_new)
-                        
-                        -- copy the weight if are changed
-                        if x ~= x_new then
-                                x:copy(x_new)
-                        end
-        
-                        -- select a training batch
-                        local inputs, targets = data["inputs"], data["targets"]
-        
-                        -- reset gradients (gradients are always accumulated, to accommodate
-                        -- batch methods)
-                        dl_dx:zero()
-        
-                        -- evaluate the loss function and its derivative wrt x, given mini batch
-                        local prediction = netBRNN:forward(inputs)
-                        local loss_x = criterion:forward(prediction, targets)
-                        netBRNN:backward(inputs, criterion:backward(prediction, targets))
-        
-                        return loss_x, dl_dx
-                end
+--        feval = function(x_new)
+--
+--                -- copy the weight if are changed
+--                if x ~= x_new then
+--                        x:copy(x_new)
+--                end
+--
+--                -- select a training batch
+--                local inputs, targets = data["inputs"], data["targets"]
+--
+--                -- reset gradients (gradients are always accumulated, to accommodate
+--                -- batch methods)
+--                dl_dx:zero()
+--
+--                -- evaluate the loss function and its derivative wrt x, given mini batch
+--                local prediction = netBRNN:forward(inputs)
+--                local loss_x = criterion:forward(prediction, targets)
+--                netBRNN:backward(inputs, criterion:backward(prediction, targets))
+--
+--                return loss_x, dl_dx
+--        end
 end
 
 
@@ -620,13 +620,13 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
 
         -- lap tren tung bo du lieu nhieu lan
         for idxLoopOneDataset = 1, nCountLoopOneDataset do
-                
+
                 local indicates = torch.randperm(nIndexEnd)
-                
+
                 for idx = nIndexStart, nIndexEnd do --while iteration ~= nIndexEnd do
-                        
+
                         iteration = indicates[idx]
-                        
+
                         -- ----------------------------------------------------------------
                         -- Khoi tao du lieu input cho 1 cau
                         -- ----------------------------------------------------------------
@@ -641,15 +641,36 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
                         sentence = torch.Tensor(inputs[iteration])
 
                         sentenceNERDist = torch.Tensor(targets[iteration])
-                                                
+
 
                         data["inputs"], data["targets"] = sentence, sentenceNERDist
 
                         nCountSentence = sentence:size()[1]
 
                         iteration = iteration%nSizeInput + 1
-
                         
+                        local feval = function(x_new)
+
+                                -- copy the weight if are changed
+                                if x ~= x_new then
+                                        x:copy(x_new)
+                                end
+                
+                                -- select a training batch
+                                local inputs, targets = data["inputs"], data["targets"]
+                
+                                -- reset gradients (gradients are always accumulated, to accommodate
+                                -- batch methods)
+                                dl_dx:zero()
+                
+                                -- evaluate the loss function and its derivative wrt x, given mini batch
+                                local prediction = rnn:forward(inputs)
+                                local loss_x = criterion:forward(prediction, targets)
+                                rnn:backward(inputs, criterion:backward(prediction, targets))
+                
+                                return loss_x, dl_dx
+                        end     
+
                         for j = 1, countLoopForOneBatch do
 
                                 -- train a mini_batch of batchSize in parallel
@@ -660,11 +681,11 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
 
                         if(iteration%100 == 0) then
                                 collectgarbage()
-                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ", 
+                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ",
                                         k, idxLoopOneDataset, nCountLoopOneDataset, iteration, fs[1] / nCountSentence))
                         end
-                        
-                        data["inputs"], data["targets"] = nil, nil 
+
+                        data["inputs"], data["targets"] = nil, nil
 
                 end
 
@@ -820,15 +841,15 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
         if g_countLoopAllData == nil then nCountLoopOneDataset = 30 else nCountLoopOneDataset = g_countLoopAllData end
 
 
-        thresholdTraining =  #inputs 
+        thresholdTraining =  #inputs
 
         local k = g_iDataset
 
-        nIndexStart = 1 
-        nIndexEnd = thresholdTraining 
+        nIndexStart = 1
+        nIndexEnd = thresholdTraining
         print(string.format('Dataset [%d/%d] : ', k, 10))
-       
-       
+
+
         -- Tinh ma tran trong so khi tap hoc thay doi
         --local mtRateClassTraining = (GetRateTrainingEachClass(targets,nIndexStart,thresholdTraining))
         --criterion.criterion.weights = mtRateClassTraining
@@ -836,13 +857,13 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
 
         -- lap tren tung bo du lieu nhieu lan
         for idxLoopOneDataset = 1, nCountLoopOneDataset do
-                
+
                 local indicates = torch.randperm(nIndexEnd)
-                
+
                 for idx = nIndexStart, nIndexEnd do
 
                         iteration = indicates[idx]
-                        
+
                         -- ----------------------------------------------------------------
                         -- Khoi tao du lieu input cho 1 cau
                         -- ----------------------------------------------------------------
@@ -859,26 +880,48 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
                         sentence = torch.Tensor(inputs[iteration])
 
                         sentenceNERDist = torch.Tensor(targets[iteration])
-                        
+
                         sentenceFeatures = torch.Tensor(features[iteration])
-                        
-                        if(g_iModelTest == 1) then 
+
+                        if(g_iModelTest == 1) then
                                 data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
                         else
                                 data["inputs"], data["targets"] = {sentence, sentenceFeatures}, sentenceNERDist
                         end
                         nCountSentence = sentence:size()[1]
+                        
+                        local feval = function(x_new)
 
+                                -- copy the weight if are changed
+                                if x ~= x_new then
+                                        x:copy(x_new)
+                                end
+                
+                                -- select a training batch
+                                local inputs, targets = data["inputs"], data["targets"]
+                
+                                -- reset gradients (gradients are always accumulated, to accommodate
+                                -- batch methods)
+                                dl_dx:zero()
+                
+                                -- evaluate the loss function and its derivative wrt x, given mini batch
+                                local prediction = rnn:forward(inputs)
+                                local loss_x = criterion:forward(prediction, targets)
+                                rnn:backward(inputs, criterion:backward(prediction, targets))
+                
+                                return loss_x, dl_dx
+                        end  
+                        
                         for j = 1, countLoopForOneBatch do
 
                                 -- train a mini_batch of batchSize in parallel
                                 _, fs = optim.sgd(feval,x, sgd_params)
 
                         end
-                        
+
                         if(iteration%100 == 0) then
                                 collectgarbage()
-                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ", 
+                                print(string.format("[Data - %d - loop: %d/%d] Cau %d ; NLL err = %f ",
                                         k, idxLoopOneDataset, nCountLoopOneDataset, iteration, fs[1] / nCountSentence))
                         end
 
@@ -890,7 +933,7 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
                         rnn,
                         DataSetGroup["inputsTest"],
                         DataSetGroup["targetsTest"],
-                        g_nCountLabel, 
+                        g_nCountLabel,
                         nIndexStart, nIndexEnd,
                         DataSetGroup["featuresTest"])
         end
