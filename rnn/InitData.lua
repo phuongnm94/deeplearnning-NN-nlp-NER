@@ -562,6 +562,9 @@ function loadDataSet(sPathFileDataSet, pairWordIds, NERIds,nLastIdxMtWordVector,
                                 end
                         end
                 end
+                if (g_isUseFeatureWord and g_iModelTest ==  2) then 
+                        GenerateLinguiticsFeatureWeight(DataSet)
+                end 
         else 
                 local nCountInputs = #inputs
                 local nCountTestSet = math.max(1,math.ceil((1 - g_trainRate) * nCountInputs));
@@ -756,6 +759,59 @@ function GetRateTrainingEachClass(dataset, nIndexStart, nCountElement)
         return mtRateRet, rateClassRet
 end
 
+
+---
+-- Sinh ma tran trong so = distinct(featuresMatrix) -> sd lookup table to weight
+--
+-- @function [parent=#global]  GenerateLinguiticsFeatureWeight(data)
+function GenerateLinguiticsFeatureWeight(data)
+        
+        local mtWeightFeature = tableEx({})
+        local mtWeightFeatureReverse = tableEx({})
+        local idFeature, keyReverse
+        for idxSentence, sentence in pairs(data["featuresTrain"]) do 
+                for idxWord, vtWordFeature in pairs(sentence)do 
+                
+                        -- trich xuat key cua features = 10010100101
+                        keyReverse = table.concat(vtWordFeature,'')
+                        
+                        -- kiem tra key nay co trong ma tran features hay chua
+                        idFeature = mtWeightFeatureReverse[keyReverse]
+                        if (idFeature == nil)then 
+                                idFeature = #mtWeightFeature+1
+                                mtWeightFeature[idFeature] = vtWordFeature
+                                mtWeightFeatureReverse[keyReverse] = idFeature
+                        end 
+                        sentence[idxWord] = idFeature
+                end       
+        end
+        for idxSentence, sentence in pairs(data["featuresTest"]) do 
+                for idxWord, vtWordFeature in pairs(sentence)do 
+                        
+                        -- trich xuat key cua features = 10010100101
+                        keyReverse = table.concat(vtWordFeature,'')
+                        
+                        -- kiem tra key nay co trong ma tran features hay chua
+                        idFeature = mtWeightFeatureReverse[keyReverse]
+                        if (idFeature == nil)then
+                                idFeature = #mtWeightFeature+1
+                                mtWeightFeature[idFeature] = vtWordFeature
+                                mtWeightFeatureReverse[keyReverse] = idFeature
+                        end 
+                        sentence[idxWord] = idFeature
+                        
+                        
+                        
+                end       
+        end
+        data['featuresWeight']= torch.Tensor(mtWeightFeature)
+        g_nFeatureDims = #mtWeightFeature[1]
+        g_nFeatureSize = #mtWeightFeature
+        print (string.format('size Weight Linguitics Features = [%dx%d]', g_nFeatureSize, g_nFeatureDims))
+end
+
+
+
 ---
 -- Cai dat du lieu dataset : trainning and testing
 --
@@ -813,7 +869,9 @@ function InitData(sDictName, sDataSetName)
                 -- read dataset
                 inputs, targets, features = loadDataSet(sDataSetName,pairWordIds,NERIds, nLastIdxMtWordVector, sizeAppendDict)
                 if(g_isUseFeatureWord == true ) then 
-                        g_nFeatureDims = #DataSet["featuresTrain"][1][1]
+                        if (g_iModelTest == 1) then 
+                                g_nFeatureDims = #DataSet["featuresTrain"][1][1]
+                        end 
                 end
 
                 -- tinh ti le bo du lieu train - test tren tung chu de

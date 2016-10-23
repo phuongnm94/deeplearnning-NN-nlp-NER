@@ -34,7 +34,7 @@ function main()
         bIsUseOptimize = opt.isUseOptimizeGradient
 
         -- hyper-parameters
-        rawDataInputSize = 46000        -- so chieu vector 
+        rawDataInputSize = 25000 --46000        -- so chieu vector 
 
         rho = 512                       -- so tu trong 1 cau ~ co the thay doi theo cau
         hiddenSize = 200                -- so chieu vector sinh boi word to vec
@@ -52,6 +52,7 @@ function main()
         g_isUseFeatureWord = opt.isUseFeatureWord
         g_iModelTest = opt.iModelTest
         g_nFeatureDims = nil
+        g_nFeatureSize = nil
 
         print (opt)
 

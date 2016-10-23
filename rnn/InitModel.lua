@@ -7,13 +7,16 @@ require 'nninit'
 ---
 -- Cai dat du lieu dau vao
 --
--- @function [parent=#InitModel] GetInputEmbeddedLayer(rawDataInputSize, hiddenSize, mtWeightInit, bIsUseFeatures, rawFeatureInputSize)
+-- @function [parent=#InitModel] GetInputEmbeddedLayer(rawDataInputSize, hiddenSize,
+--       mtWeightInit, bIsUseFeatures, rawFeatureInputSize, mtLinguiticFeatues)
 -- @param rawDataInputSize so chieu vector du lieu dau vao = kich thuoc tu dien
 -- @param hiddenSize so chieu tang an
 -- @param mtWeightInit ma tran khoi tao word to vect
 -- @param bIsUseFeatures su dung cac dac trung ngon ngu bo sung
 -- @param rawFeatureInputSize so chieu cua vector dac trung ngon ngu
-local function GetInputEmbeddedLayer2(rawDataInputSize, hiddenSize, mtWeightInit, bIsUseFeatures, rawFeatureInputSize)
+-- @param mtLinguiticFeatues ma tran linguitics featues - dac trung ngu nghia
+local function GetInputEmbeddedLayer2(rawDataInputSize, hiddenSize, mtWeightInit,
+         bIsUseFeatures, rawFeatureInputSize, mtLinguiticFeatues)
 
         local module = nil
 
@@ -32,13 +35,22 @@ local function GetInputEmbeddedLayer2(rawDataInputSize, hiddenSize, mtWeightInit
 
         if(bIsUseFeatures~= nil and bIsUseFeatures == true) then
                 -- cai dat ma tran features
-                local linear = nn.Linear(rawFeatureInputSize, rawFeatureInputSize)
-                linear:init('weight', nninit.xavier)
-                local feature = nn.Sequencer(linear)
-                
-                module = nn.Sequential()
-                        :add(nn.ParallelTable():add(w2v):add(feature--[[nn.CAddTable()]]))
-                        :add(nn.JoinTable(3))
+                --local linear = nn.Linear(rawFeatureInputSize, rawFeatureInputSize)
+                --linear:init('weight', nninit.xavier)
+                --local feature = nn.Sequencer(linear)
+                if (g_iModelTest == 1) then
+                         module = nn.Sequential()
+                                :add(nn.ParallelTable():add(w2v):add(--[[feature]]nn.CAddTable()))
+                                :add(nn.JoinTable(3))
+                elseif (g_iModelTest == 2) then
+                        local linguiticFeatures = nn.LookupTable(g_nFeatureSize, g_nFeatureDims)
+                        linguiticFeatures.weight = mtLinguiticFeatues
+                        module = nn.Sequential()
+                                :add(nn.ParallelTable():add(w2v):add(linguiticFeatures))
+                                :add(nn.JoinTable(3))
+                else
+                        assert(false,'g_iModelTest not install model with features')
+                end
         else
                 module = w2v
         end
@@ -256,7 +268,46 @@ function InitModelNN(sModelName, rawDataInputSize, hiddenSize, nCountLabel, mtWe
                         
                         -- features co ban - Join vao input tang dau tien 
                         -- inputdims = hiddensize + featuresDimes
-                        if(g_iModelTest ==  1) then
+                        if(g_iModelTest ==  1 or g_iModelTest ==  2) then
+                                -- Bo sung linguistic features
+                                local brnn, linear, softmax
+                                
+                                inputLayer = GetInputEmbeddedLayer2(rawDataInputSize,hiddenSize,
+                                        mtWeightInit,g_isUseFeatureWord,rawFeatureInputSize, DataSet["featuresWeight"])
+                                
+
+                                -- cai dat cac tang co ban
+                                -- init basic Layer of net
+                                brnn = nn.SeqBRNN(hiddenSize+rawFeatureInputSize, math.ceil(hiddenSize/2), true)
+                                linear = nn.Linear( math.ceil(hiddenSize/2), g_nCountLabel)
+                                softmax = nn.LogSoftMax()
+
+                                -- Cai dat sequencer va maskzero cho cac layer
+                                -- init option sequencer & maskzero
+                                if(g_isUseMaskZeroPadding == true) then
+                                        brnn.forwardModule.maskzero = true
+                                        brnn.backwardModule.maskzero = true
+                                        linear = nn.Sequencer(nn.MaskZero(linear, 1))
+                                        softmax = nn.Sequencer(nn.MaskZero(softmax, 1))
+
+                                else
+                                        linear = nn.Sequencer(linear)
+                                        softmax = nn.Sequencer(softmax)
+                                end
+
+                                -- cai dat mang chinh
+                                -- init net
+                                module = nn.Sequential()
+                                        :add(inputLayer)
+                                        :add(brnn)
+                                        :add(linear)
+                                        :add(softmax)
+                                goto _EXIT_FUNCTION_
+                        end 
+                        
+                        -- features co ban - Join vao input tang dau tien 
+                        -- inputdims = hiddensize + featuresDimes
+                        if(g_iModelTest ==  2) then
                                 -- Bo sung linguistic features
                                 local brnn, linear, softmax
 
@@ -293,7 +344,7 @@ function InitModelNN(sModelName, rawDataInputSize, hiddenSize, nCountLabel, mtWe
                         end 
                         
                         -- features nang cao - Add vao input tang cuoi cung 
-                        if(g_iModelTest ==  2) then
+                        if(g_iModelTest ==  3) then
                         
                                 -- Bo sung linguistic features
                                 local brnn, linear, softmax

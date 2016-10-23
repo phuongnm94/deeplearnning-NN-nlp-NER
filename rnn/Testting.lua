@@ -419,6 +419,8 @@ function TestUseCrossvalidationParallel(rnn, inputs, targets, nCountTopic, nInde
                         sentenceFeatures = torch.Tensor(features[iteration])
                         --sentence = {sentence, sentenceFeatures}
                         if(g_iModelTest == 1) then 
+                                sentence = {sentence, {sentenceFeatures}}
+                        elseif(g_iModelTest == 2) then 
                                 sentence = {sentence, sentenceFeatures}
                         else
                                 sentence = {sentence, sentenceFeatures}
