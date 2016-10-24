@@ -545,27 +545,27 @@ function InitOptimizeConfig(netBRNN, opt)
                 targets = nil
         }
 
---        feval = function(x_new)
---
---                -- copy the weight if are changed
---                if x ~= x_new then
---                        x:copy(x_new)
---                end
---
---                -- select a training batch
---                local inputs, targets = data["inputs"], data["targets"]
---
---                -- reset gradients (gradients are always accumulated, to accommodate
---                -- batch methods)
---                dl_dx:zero()
---
---                -- evaluate the loss function and its derivative wrt x, given mini batch
---                local prediction = netBRNN:forward(inputs)
---                local loss_x = criterion:forward(prediction, targets)
---                netBRNN:backward(inputs, criterion:backward(prediction, targets))
---
---                return loss_x, dl_dx
---        end
+        feval = function(x_new)
+
+                -- copy the weight if are changed
+                if x ~= x_new then
+                        x:copy(x_new)
+                end
+
+                -- select a training batch
+                local inputs, targets = data["inputs"], data["targets"]
+
+                -- reset gradients (gradients are always accumulated, to accommodate
+                -- batch methods)
+                dl_dx:zero()
+
+                -- evaluate the loss function and its derivative wrt x, given mini batch
+                local prediction = netBRNN:forward(inputs)
+                local loss_x = criterion:forward(prediction, targets)
+                netBRNN:backward(inputs, criterion:backward(prediction, targets))
+
+                return loss_x, dl_dx
+        end
 end
 
 
@@ -649,28 +649,6 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
 
                         iteration = iteration%nSizeInput + 1
                         
-                        local feval = function(x_new)
-
-                                -- copy the weight if are changed
-                                if x ~= x_new then
-                                        x:copy(x_new)
-                                end
-                
-                                -- select a training batch
-                                local inputs, targets = data["inputs"], data["targets"]
-                
-                                -- reset gradients (gradients are always accumulated, to accommodate
-                                -- batch methods)
-                                dl_dx:zero()
-                
-                                -- evaluate the loss function and its derivative wrt x, given mini batch
-                                local prediction = rnn:forward(inputs)
-                                local loss_x = criterion:forward(prediction, targets)
-                                rnn:backward(inputs, criterion:backward(prediction, targets))
-                
-                                return loss_x, dl_dx
-                        end     
-
                         for j = 1, countLoopForOneBatch do
 
                                 -- train a mini_batch of batchSize in parallel
@@ -890,27 +868,6 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
                         end
                         nCountSentence = sentence:size()[1]
                         
-                        local feval = function(x_new)
-
-                                -- copy the weight if are changed
-                                if x ~= x_new then
-                                        x:copy(x_new)
-                                end
-                
-                                -- select a training batch
-                                local inputs, targets = data["inputs"], data["targets"]
-                
-                                -- reset gradients (gradients are always accumulated, to accommodate
-                                -- batch methods)
-                                dl_dx:zero()
-                
-                                -- evaluate the loss function and its derivative wrt x, given mini batch
-                                local prediction = rnn:forward(inputs)
-                                local loss_x = criterion:forward(prediction, targets)
-                                rnn:backward(inputs, criterion:backward(prediction, targets))
-                
-                                return loss_x, dl_dx
-                        end  
                         
                         for j = 1, countLoopForOneBatch do
 
