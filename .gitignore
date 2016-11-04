@@ -1,0 +1,10 @@
+./
+*.txt
+*.tag
+
+# intelij
+.dea/
+deeplearnning-NN-nlp-NER.iml
+
+
+
