@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+#<<<<<<< HEAD
 ./
 *.txt
 *.tag
@@ -9,7 +9,4 @@ deeplearnning-NN-nlp-NER.iml
 
 
 
-=======
-deeplearnning-NN-nlp-NER.iml
-.idea/
->>>>>>> origin/master
+
