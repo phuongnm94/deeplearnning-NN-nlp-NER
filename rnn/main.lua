@@ -34,7 +34,7 @@ function main()
         bIsUseOptimize = opt.isUseOptimizeGradient
 
         -- hyper-parameters
-        rawDataInputSize = 25000 --46000        -- so chieu vector 
+        rawDataInputSize = 46000        -- so chieu vector 
 
         rho = 512                       -- so tu trong 1 cau ~ co the thay doi theo cau
         hiddenSize = 200                -- so chieu vector sinh boi word to vec
@@ -64,7 +64,7 @@ function main()
         if(g_isUseFeatureWord) then
                 InitData('SubDict_vc.txt','features.txt')
         else
-                InitData('SubDict_vc.txt','NonTag4type.tag')
+                InitData('sumSubDict_vc.txt','sumNonTag4type.tag')
         end
 
 
@@ -111,7 +111,6 @@ function main()
         -- ---------------------------------------------------------------------
         local nIndexStart, nIndexEnd  = 1,200
         --goto _BEGIN_TEST
-
         if(bIsUseOptimize) then
                 if(g_isUseFeatureWord == false) then
                         nIndexStart, nIndexEnd = TrainningUseOptimBatchCrossvalidation(
@@ -139,8 +138,7 @@ function main()
                         nRateTrainningSet)
         end
 
-
-
+        
 
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------
@@ -148,7 +146,8 @@ function main()
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------
         ::_BEGIN_TEST::
-
+        --netNN = torch.load('ner_data_vc.model0.1')
+        
         TestUseCrossvalidationParallel(
                 netNN,
                 DataSetGroup["inputsTest"],
@@ -157,7 +156,7 @@ function main()
                 nIndexStart,nIndexEnd,
                 DataSetGroup["featuresTest"])
 
-
+        
         print('Tong hop ket qua TB: \n', g_result)
         ::_EXIT_FUNCTION_::
 

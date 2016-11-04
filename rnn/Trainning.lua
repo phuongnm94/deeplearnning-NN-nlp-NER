@@ -668,6 +668,10 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
                 end
 
                 print(string.format('Dataset [%d/10] Testing in loop - %d / %d', k , idxLoopOneDataset, nCountLoopOneDataset))
+                if idxLoopOneDataset>=30 and idxLoopOneDataset%10 == 0 then 
+                        torch.save('ner_data_vc.model'..(idxLoopOneDataset/10), netNN)
+                end  
+                
                 g_result[k] = TestUseCrossvalidationParallel(rnn,DataSetGroup["inputsTest"],DataSetGroup["targetsTest"],g_nCountLabel, nIndexStart, nIndexEnd)
         end
 
