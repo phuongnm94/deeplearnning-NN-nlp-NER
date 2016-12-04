@@ -1,0 +1,28 @@
+
+---> run - require install torch 7 with Lua5.2 (or 5.1)
+cmd: th main.lua
+cmd: th main.lua -h -> to see more info, params default will make the best result.
+
+
+---> Dataset 
+SubDict_trial.txt => this is my word_to_vector.
+data_trial.tag => this is dataset :
+
+struct file dataset {
+
+	word1 xxx Label1
+	word2 xxx Label2
+	word3 xxx Label1
+	...
+	word_end_sentence xxx Labelx
+
+	word_start_new_sentence xxx Label1
+	word2
+	...
+}
+! Note:
+
+-    Sentence's delimeter by empty space.
+-    xxx <= not use.
+
+
