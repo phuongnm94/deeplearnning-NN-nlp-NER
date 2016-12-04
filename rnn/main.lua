@@ -34,7 +34,7 @@ function main()
         bIsUseOptimize = opt.isUseOptimizeGradient
 
         -- hyper-parameters
-        rawDataInputSize = 46000        -- so chieu vector 
+        rawDataInputSize = 10000        -- so chieu vector 
 
         rho = 512                       -- so tu trong 1 cau ~ co the thay doi theo cau
         hiddenSize = 200                -- so chieu vector sinh boi word to vec
@@ -64,7 +64,8 @@ function main()
         if(g_isUseFeatureWord) then
                 InitData('SubDict_vc.txt','features.txt')
         else
-                InitData('sumSubDict_vc.txt','sumNonTag4type.tag')
+                -- InitData('sumSubDict_vc.txt','sumNonTag4type.tag')
+                InitData('SubDict_trial.txt','data_trial.tag')
         end
 
 
@@ -146,7 +147,7 @@ function main()
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------
         ::_BEGIN_TEST::
-        --netNN = torch.load('ner_data_vc.model0.1')
+        --netNN = torch.load('ner_data_vc.model10')
         
         TestUseCrossvalidationParallel(
                 netNN,
