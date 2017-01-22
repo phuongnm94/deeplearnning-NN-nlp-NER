@@ -607,10 +607,10 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
         for idxInput = 1, thresholdTraining do 
                 if (g_isUseCuda == false) then 
                         inputs[idxInput] = torch.Tensor(inputs[idxInput])
-                        targets[idxInput] = torch.Tensor(inputs[idxInput])
+                        targets[idxInput] = torch.Tensor(targets[idxInput])
                 else
                         inputs[idxInput] = torch.Tensor(inputs[idxInput]):cuda()
-                        targets[idxInput] = torch.Tensor(inputs[idxInput]):cuda()
+                        targets[idxInput] = torch.Tensor(targets[idxInput]):cuda()
                 end 
         end
         collectgarbage()
@@ -641,7 +641,6 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
                         -- ----------------------------------------------------------------
                         data["inputs"], data["targets"] = inputs[iteration], targets[iteration]
                         local nCountSentence = inputs[iteration]:size(1)
-                        print (data)
 
                         iteration = iteration%nSizeInput + 1
                         
