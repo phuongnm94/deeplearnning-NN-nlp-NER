@@ -56,7 +56,11 @@ function main()
         g_nFeatureSize = nil
 
         print (opt)
-
+        if (g_isUseCuda == true)then 
+                require 'cutorch'
+                require 'cunn'
+        end
+        
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------
         -- INIT DATA SET AND DICTIONARY
@@ -78,7 +82,9 @@ function main()
         -- ---------------------------------------------------------------------
         netNN = InitModelNN(sNameNet,rawDataInputSize,hiddenSize,g_nCountLabel,
                 mtWeightInit, g_nFeatureDims)
-        --print(netNN)
+        if (g_isUseCuda == true)then 
+                netNN = netNN:cuda()
+        end
         
         -- cai dat ham toi uu hoa gradient
         if(bIsUseOptimize) then
@@ -105,8 +111,6 @@ function main()
                 criterion = nn.SequencerCriterion(criterion)
         end
         if (g_isUseCuda == true)then 
-                require 'cutorch'
-                require 'cunn'
                 criterion = criterion:cuda()
         end
 
