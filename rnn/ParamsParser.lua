@@ -27,6 +27,7 @@ function ParamsParser()
         cmd:option('--isUseMaskZeroPadding', false, 'Su dung padding word cho cac cau khong cung do dai')
         cmd:option('--isReparseBalanceData', true, 'Can bang lai ti le train:test ~ 9:1')
         cmd:option('--iModelTest', 1, 'Test cai tien model')
+        cmd:option('--cuda', false, 'use Cuda gpu')
         
         -- loging
         cmd:text()

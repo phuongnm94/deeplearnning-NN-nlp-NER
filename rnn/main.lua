@@ -50,6 +50,7 @@ function main()
         g_isUseMaskZeroPadding = opt.isUseMaskZeroPadding
         g_isReparseBalanceData = opt.isReparseBalanceData
         g_isUseFeatureWord = opt.isUseFeatureWord
+        g_isUseCuda = opt.cuda
         g_iModelTest = opt.iModelTest
         g_nFeatureDims = nil
         g_nFeatureSize = nil
@@ -103,7 +104,11 @@ function main()
         else
                 criterion = nn.SequencerCriterion(criterion)
         end
-
+        if (g_isUseCuda == true)then 
+                require 'cutorch'
+                require 'cunn'
+                criterion = criterion:cuda()
+        end
 
         -- ---------------------------------------------------------------------
         -- ---------------------------------------------------------------------

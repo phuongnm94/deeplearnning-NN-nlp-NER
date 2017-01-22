@@ -508,7 +508,6 @@ function TrainningUseCrossvalidationParallel(rnn, criterion, inputs, targets, nR
                 g_result[k] = TestUseCrossvalidationParallel(rnn,inputs,targets,g_nCountLabel, nIndexStart, nIndexEnd)
         end
 
-        ::EXIT_FUNCTION::
         return nIndexStart, nIndexEnd
 
 end
@@ -605,6 +604,16 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
 
 
         thresholdTraining =  #inputs -- math.ceil((#inputs*nRate) + 1)
+        for idxInput = 1, thresholdTraining do 
+                if (g_isUseCuda == false) then 
+                        inputs[idxInput] = torch.Tensor(inputs[idxInput])
+                        targets[idxInput] = torch.Tensor(inputs[idxInput])
+                else
+                        inputs[idxInput] = torch.Tensor(inputs[idxInput]):cuda()
+                        targets[idxInput] = torch.Tensor(inputs[idxInput]):cuda()
+                end 
+        end
+        collectgarbage()
 
         local k = g_iDataset
 
@@ -630,22 +639,9 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
                         -- ----------------------------------------------------------------
                         -- Khoi tao du lieu input cho 1 cau
                         -- ----------------------------------------------------------------
-
-                        local sentence, sentenceNERDist, sentenceFeatures = {}, {}, {}
-                        local batchInput, batchTarget = {}, {}
-                        local nCountSentence = nil
-
-                        local outputs, err
-                        local gradOutputs, gradInputs
-
-                        sentence = torch.Tensor(inputs[iteration])
-
-                        sentenceNERDist = torch.Tensor(targets[iteration])
-
-
-                        data["inputs"], data["targets"] = sentence, sentenceNERDist
-
-                        nCountSentence = sentence:size()[1]
+                        data["inputs"], data["targets"] = inputs[iteration], targets[iteration]
+                        local nCountSentence = inputs[iteration]:size(1)
+                        print (data)
 
                         iteration = iteration%nSizeInput + 1
                         
@@ -675,7 +671,6 @@ function TrainningUseOptimBatchCrossvalidation(rnn, criterion, inputs, targets, 
                 g_result[k] = TestUseCrossvalidationParallel(rnn,DataSetGroup["inputsTest"],DataSetGroup["targetsTest"],g_nCountLabel, nIndexStart, nIndexEnd)
         end
 
-        ::EXIT_FUNCTION::
         return nIndexStart, nIndexEnd
 
 end
@@ -899,7 +894,6 @@ function TrainningUseOptimBatchFeaturesCrossvalidation(rnn, criterion, inputs, t
                         DataSetGroup["featuresTest"])
         end
 
-        ::EXIT_FUNCTION::
         return nIndexStart, nIndexEnd
 
 end
